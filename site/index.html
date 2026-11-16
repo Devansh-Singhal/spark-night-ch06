@@ -31,7 +31,7 @@
       <div class="hero-copy">
         <p class="tag"><span class="status-dot"></span> Weld monitoring prototype</p>
         <h1 id="headline">Catch the<br>missing weld.</h1>
-        <p class="lede">Four welds were expected. The arc fired three times. See how Nabz could flag the part before it leaves the fixture.</p>
+        <p class="lede">Four welds were expected. Only three arcs registered. Run the shift to see what an earlier warning lets the operator do.</p>
         <a class="button" data-simulator href="#walkthrough"><span class="play" aria-hidden="true"></span> Run the simulation</a>
         <p class="launch-note" data-launch-note hidden>Opens the on-site trace walkthrough. Standalone replay connection pending.</p>
       </div>
@@ -83,7 +83,7 @@
       <ol class="mechanism">
         <li><span class="step">01 / Sense</span><h3>Find each arc</h3><p>A proposed clamp on the welding cable measures current. On/off thresholds and a minimum dwell define the arc window. A confirmed fixture or operator event closes the part cycle.</p></li>
         <li><span class="step">02 / Compare</span><h3>Check the job recipe</h3><p>Count arc windows and check their duration. Score phone audio inside those windows against inspected good welds from the same job. A change in wire, gas, or recipe calls for a new baseline.</p></li>
-        <li><span class="step">03 / Respond</span><h3>Tell the operator why</h3><p>Missing or short arc: hold the part for inspection. Sustained sound drift: check the setup. If a sensor drops out or the cycle boundary is uncertain, show that status and use the inspection plan.</p></li>
+        <li><span class="step">03 / Respond</span><h3>Tell the operator why</h3><p>A missing or short arc means hold the part for inspection. Sustained sound drift earns a setup check. If a sensor drops out or the cycle boundary is uncertain, show that status and use the inspection plan.</p></li>
       </ol>
       <p class="technical-note"><strong>What the signals establish.</strong> Current shows when an arc fired and for how long. A correct count can still occur at the wrong location, and a short arc only suggests a short weld. Sound drift is an advisory. Weld geometry, strength and acceptance still come from inspection.</p>
     </section>
@@ -92,23 +92,27 @@
       <div class="shell section">
         <div class="section-heading">
           <p class="tag">Illustrative shop-floor case</p>
-          <h2 id="case-heading">Part 0184 is still on the fixture.</h2>
-          <p>A fictional auto-component supplier near Kundli runs four MIG welds per bracket. One arc never fires. The rest of the cycle completes.</p>
+          <h2 id="case-heading">Part 0184 is one arc short.</h2>
+          <p>A fictional supplier near Kundli makes rear suspension brackets at Station 02. Each part takes 48 seconds and calls for four MIG arcs. Choose what the operator does when the sound starts to change.</p>
         </div>
         <div class="case-compare">
           <article>
-            <h3>At cycle close</h3>
-            <p>With a confirmed part boundary, Nabz sees three arcs against four expected and recommends holding part 0184. The operator inspects the bracket and records the disposition.</p>
+            <h3>Check the setup at part 0163</h3>
+            <p>Four of the last six parts sound unusual while the arc count and durations still meet the recipe. In the replay, the advisory arrives 12 parts (9.6 min) before the first modeled defect. Acting on it costs a three-minute stop to change the tip.</p>
           </article>
           <article>
-            <h3>At the next sampled teardown</h3>
-            <p>If a later sample reveals a problem, quality may hold parts made since the last accepted check. In this fictional shop, a teardown every 40 parts puts up to 40 parts in scope for review. A visual check at the fixture could also catch an accessible missing seam.</p>
+            <h3>Keep running to teardown</h3>
+            <p>The current rule recommends holding 0184 after it logs three of four arcs. The baseline workflow discovers the internal defect at the scheduled teardown on 0220 and holds 120 parts for review.</p>
           </article>
         </div>
-        <p class="case-note">The teaching trace shows one hold decision. Time saved, parts avoided and rupee savings for that run are unmeasured. Visual testing examines accessible fusion welds, and radiography can be used for internal indications when specified. <a class="source-link" href="https://www.iso.org/standard/67259.html" target="_blank" rel="noopener noreferrer">ISO 17637 ↗</a> <a class="source-link" href="https://www.iso.org/standard/78319.html" target="_blank" rel="noopener noreferrer">ISO 17636-1 ↗</a></p>
+        <div class="run-value">
+          <div><p class="tag">Worn tip replay / default inputs</p><strong>₹25,050</strong><span>modeled savings in one run</span></div>
+          <p>Baseline ₹25,200 = 120 sorts × ₹25 + 46 scraps × ₹450 + 30 stop minutes × ₹50. Acting on the warning costs ₹150 for 3 stop minutes. Open <strong>Assumptions &amp; sources</strong> in the replay to edit the costs.</p>
+        </div>
+        <p class="case-note">Visual checks can catch an accessible missing seam. The fictional teardown checks inside the weld. Radiography is another internal testing method when specified by the inspection plan. <a class="source-link" href="https://www.iso.org/standard/67259.html" target="_blank" rel="noopener noreferrer">ISO 17637 ↗</a> <a class="source-link" href="https://www.iso.org/standard/78319.html" target="_blank" rel="noopener noreferrer">ISO 17636-1 ↗</a></p>
         <div class="applications">
           <article><h3>Repeat fixture jobs</h3><p>Start with brackets and similar parts with a known arc count, repeatable cycle boundaries and an existing inspection plan.</p></article>
-          <article><h3>One job starts sounding different</h3><p>A sustained shift earns a setup check. Shielding problems are one cause of porosity. The operator investigates and quality verifies the joint. <a class="source-link" href="https://www.twi-global.com/technical-knowledge/job-knowledge/defects-imperfections-in-welds-porosity-042?vAction=swpTextOnly" target="_blank" rel="noopener noreferrer">TWI ↗</a></p></article>
+          <article><h3>One job starts sounding different</h3><p>Contact-tip problems can disrupt the arc and wire feed. A sustained sound shift earns a setup check. A wire lot change can also shift the signal, so each advisory needs investigation. <a class="source-link" href="https://www.bernardtregaskiss.com/understanding-and-extending-contact-tip-life/" target="_blank" rel="noopener noreferrer">Bernard &amp; Tregaskiss ↗</a></p></article>
         </div>
       </div>
     </section>
@@ -160,8 +164,8 @@
           <aside class="pilot">
             <h3>One fixture. Two weeks.</h3>
             <dl>
-              <dt>Shown here</dt><dd>Synthetic current traces for normal, missing and short arcs, with operator decisions.</dd>
-              <dt>Proposed</dt><dd>Clamp and phone capture, job-specific drift scoring, and a part-level disposition log.</dd>
+              <dt>Shown in replay</dt><dd>Arc count and duration rules, drift scoring and operator choices on synthetic data. The wire-lot case shows a false advisory.</dd>
+              <dt>Proposed</dt><dd>Live clamp and phone capture, a baseline fitted to inspected welds, and a part-level disposition log.</dd>
               <dt>Needs a pilot</dt><dd>Live alert lead time, false alerts per shift, missed defects, sensor reliability and install cost.</dd>
             </dl>
             <p>We’re looking for one repeat-part MIG fixture in Rai or Kundli to run alongside the shop’s regular inspections.</p>

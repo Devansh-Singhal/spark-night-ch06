@@ -105,6 +105,9 @@ h3 { font-size: clamp(1.27rem, 2vw, 1.65rem); line-height: 1.12; letter-spacing:
 .case-compare article { background: #f8f9f7; padding: clamp(1.1rem, 2.65vw, 2.2rem); border-top: 4px solid #15848a; }
 .case-compare article + article { border-top-color: #9a511e; }
 .case-compare h3, .applications h3 { margin-bottom: .45rem; }
+.run-value { display: grid; grid-template-columns: minmax(195px, .45fr) 1fr; align-items: center; gap: 1rem 1.5rem; margin-top: 1rem; padding: 1rem clamp(1rem, 2.65vw, 2.2rem); border-left: 4px solid #15848a; background: #cddfe0; }
+.run-value div strong { display: block; color: var(--action); font: 690 clamp(2.4rem, 5vw, 3.6rem)/1.04 var(--display); letter-spacing: -.05em; }
+.run-value span, .run-value > p { color: var(--muted); font-size: .9rem; }
 .case-note { margin-top: 1rem; max-width: 88ch; font-size: .93rem; color: var(--muted); }
 .applications { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; padding-top: 1.35rem; border-top: 1px solid #aebdc0; }
 
@@ -155,7 +158,7 @@ details p { margin-top: .45rem; max-width: 86ch; }
   .hero .lede { margin-bottom: 1.15rem; }
   .recall-inner { grid-template-columns: auto 1fr; }
   .recall-inner a { grid-column: 2; }
-  .mechanism, .case-compare, .applications, .calculator, .evidence-layout { grid-template-columns: 1fr; }
+  .mechanism, .case-compare, .run-value, .applications, .calculator, .evidence-layout { grid-template-columns: 1fr; }
   .mechanism li + li { border-left: 0; border-top: 1px solid var(--line); }
 }
 @media (max-width: 350px) {
