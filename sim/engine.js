@@ -1,6 +1,6 @@
 // Nabz simulation engine.
-// Pure and deterministic: the same scenario + operator decision always yields
-// the same run. No DOM access, so it runs in the browser and in Node tests.
+// Pure and deterministic: the same scenario (fault list) + operator policy always
+// yields the same run. No DOM access, so it runs in the browser and in Node tests.
 //
 // Mechanism follows docs.md:
 //   1. Segment arcs from the clamp current (separate on/off thresholds + minimum dwell).
@@ -14,7 +14,6 @@
 // ---------------------------------------------------------------- job & recipe
 export const JOB = {
   station: 'Station 02',
-  plant: 'Kundli plant (fictional supplier)',
   partNo: 'RSB-417',
   partName: 'Rear suspension bracket',
   process: 'MIG (GMAW), short-circuit transfer, 0.9 mm ER70S-6, Ar/CO₂ 82/18',
@@ -25,9 +24,9 @@ export const JOB = {
   shiftStart: '14:02:00',
   welds: [
     // start time within the cycle (s), nominal arc duration (s), nominal current (A)
-    { id: 'W1', name: 'Gusset left',  start: 9.0,  dur: 3.2, amps: 165 },
-    { id: 'W2', name: 'Gusset right', start: 15.0, dur: 3.2, amps: 165 },
-    { id: 'W3', name: 'Tube saddle',  start: 22.0, dur: 4.4, amps: 180 },
+    { id: 'W1', name: 'Left gusset',  start: 9.0,  dur: 3.2, amps: 165 },
+    { id: 'W2', name: 'Right gusset', start: 15.0, dur: 3.2, amps: 165 },
+    { id: 'W3', name: 'Tube collar',  start: 22.0, dur: 4.4, amps: 180 },
     { id: 'W4', name: 'Tab fillet',   start: 30.5, dur: 2.4, amps: 150 },
   ],
   durTolerance: 0.2,        // recipe: arc must be >= 80% of nominal duration
@@ -50,55 +49,60 @@ export const DETECTOR = {
 
 export const BAND_LABELS = ['0.1', '0.3', '0.6', '1.2', '2.4', '4.8', '9.6', '16'];
 
-// ---------------------------------------------------------------- scenarios
-export const SCENARIOS = {
+// ---------------------------------------------------------------- faults & presets
+// A scenario is a seed plus a list of faults. Each fault starts at a part.
+//   wear    contact tip wears from `at` (arc gets less stable; later lack of fusion; burnback)
+//   lot     new wire lot from `at` (small, harmless change in arc sound)
+//   noise   loud shop noise (grinder) on one arc of part `at`
+//   dropout clamp signal lost for part `at`
+//   skip    weld `weld` of part `at` is never made
+export const FAULT_INFO = {
+  wear: { label: 'Worn contact tip', short: 'Tip wear' },
+  lot: { label: 'New wire lot', short: 'Wire lot' },
+  noise: { label: 'Grinder next to the station', short: 'Grinder' },
+  dropout: { label: 'Clamp signal lost', short: 'Clamp lost' },
+  skip: { label: 'Weld skipped', short: 'Skipped weld' },
+};
+
+export const PRESETS = {
   healthy: {
     id: 'healthy',
-    seed: 0,
     label: 'Healthy run',
-    short: 'Healthy',
-    story: 'A normal shift segment. A grinder near the station spikes one arc, and the clamp drops out for one part.',
-    truth: 'No process change. Every weld is sound.',
-    drift: () => 0,
-    grinderArcs: [[127, 2]],   // [part, weldIndex] — loud nearby noise on a single arc
-    dropouts: [196],           // clamp stream lost for this part
-    missedArcs: [],
-    defectAt: Infinity,
-    cause: null,
+    seed: 0,
+    faults: [{ kind: 'noise', at: 127, weld: 2 }, { kind: 'dropout', at: 196 }],
+    intro: 'A normal stretch of production. Nothing is wrong with the process, but the shop is not quiet.',
+    truth: 'No process change. A grinder spikes one arc on part 0127, and the clamp signal drops on part 0196. Every weld is sound.',
   },
   fault: {
     id: 'fault',
+    label: 'Worn contact tip',
     seed: 0,
-    label: 'Fault run · worn contact tip',
-    short: 'Worn tip',
-    story: 'The contact-tip bore wears. The arc gets less stable long before the bead looks wrong.',
-    truth: 'Tip wear starts at part 0136. Lack of fusion inside welds from the severity limit on. Burnback stops the wire on W3 of part 0184.',
-    // severity 0..1: slow ramp after onset
-    drift: (p) => (p < 136 ? 0 : Math.min(1, Math.pow((p - 136) / 64, 1.25))),
-    grinderArcs: [[118, 0]],
-    dropouts: [],
-    missedArcs: [[184, 2]],    // docs.md: part 0184, three of four expected welds
-    defectAt: 0.55,            // severity above which welds have internal defects
-    cause: 'Worn contact tip',
-    fixLabel: 'Change contact tip',
+    faults: [{ kind: 'wear', at: 136 }, { kind: 'noise', at: 118, weld: 0 }],
+    intro: 'The contact tip that feeds wire into the arc slowly wears out. Watch the arc sound.',
+    truth: 'Tip wear starts at part 0136. Lack of fusion inside the welds from part 0175. The wire burns back and W3 is never made on part 0184.',
   },
   borderline: {
     id: 'borderline',
+    label: 'Wire lot change',
     seed: 31,
-    label: 'Borderline · new wire lot',
-    short: 'Wire lot',
-    story: 'A new wire spool from a different lot is loaded at part 0150 without refreshing the baseline. Welds stay in spec.',
-    truth: 'Small, harmless shift in arc sound from part 0150. No defects.',
-    drift: (p) => (p < 150 ? 0 : 0.28),
-    grinderArcs: [],
-    dropouts: [],
-    missedArcs: [],
-    defectAt: Infinity,
-    cause: 'Wire lot change (in spec)',
-    fixLabel: 'Check setup',
-    benign: true,
+    faults: [{ kind: 'lot', at: 150 }],
+    intro: 'A new wire spool is loaded mid-run. It is within spec, but it sounds a little different.',
+    truth: 'New wire lot from part 0150 without a baseline refresh. Welds stay in spec. No defects.',
+  },
+  sandbox: {
+    id: 'sandbox',
+    label: 'Sandbox',
+    seed: 7,
+    faults: [],
+    intro: 'Run the station and break it yourself. Each fault starts on the next part.',
+    truth: 'Whatever you injected.',
   },
 };
+
+const wearRamp = (d) => (d <= 0 ? 0 : Math.min(1, Math.pow(d / 64, 1.25)));
+const WEAR_DEFECT = 0.55;   // severity above which welds have internal lack of fusion
+const WEAR_BURNBACK = 0.68; // severity at which the wire burns back once (missed W3)
+const LOT_SHIFT_SIZE = 0.28;
 
 // ---------------------------------------------------------------- deterministic RNG
 // Counter-based: noise for (part, weld, k) is identical in every branch of the run,
@@ -135,15 +139,12 @@ const WEAR_SHIFT = [-1.0, -1.5, -2.5, -1.0, 2.5, 4.5, 6.0, 6.5];
 const LOT_SHIFT = [0.5, 1.0, 1.5, 1.0, 1.5, 2.5, 3.0, 3.0];
 const GRINDER = [0, 1, 2, 4, 9, 14, 16, 12];
 
-function arcFeatures(scn, p, w, severity) {
-  const shift = scn.id === 'borderline' ? LOT_SHIFT : WEAR_SHIFT;
+function arcFeatures(seed, p, w, wearSev, lotSev, noisy) {
   const out = new Array(8);
+  const jitter = 1 + 0.9 * (wearSev + lotSev);   // a less stable arc is also more variable
   for (let b = 0; b < 8; b++) {
-    const jitter = 1 + 0.9 * severity;          // a less stable arc is also more variable
-    out[b] = PROFILE[w][b] + severity * shift[b] + SIGMA[b] * jitter * gauss(SEED + (scn.seed || 0), p, w, b);
-  }
-  if (scn.grinderArcs.some(([gp, gw]) => gp === p && gw === w)) {
-    for (let b = 0; b < 8; b++) out[b] += GRINDER[b];
+    out[b] = PROFILE[w][b] + wearSev * WEAR_SHIFT[b] + lotSev * LOT_SHIFT[b] + SIGMA[b] * jitter * gauss(SEED + seed, p, w, b);
+    if (noisy) out[b] += GRINDER[b];
   }
   return out;
 }
@@ -164,9 +165,7 @@ const quantile = (a, q) => {
 function fitBaseline() {
   const base = JOB.welds.map((_, w) => {
     const rows = [];
-    for (let i = 0; i < DETECTOR.baselineParts; i++) {
-      rows.push(arcFeatures(SCENARIOS.healthy, -1000 - i, w, 0));
-    }
+    for (let i = 0; i < DETECTOR.baselineParts; i++) rows.push(arcFeatures(0, -1000 - i, w, 0, 0, false));
     const med = [], mad = [];
     for (let b = 0; b < 8; b++) {
       const col = rows.map((r) => r[b]);
@@ -178,11 +177,11 @@ function fitBaseline() {
   });
   const val = [];
   for (let i = 0; i < DETECTOR.validationParts; i++) {
-    const arcs = JOB.welds.map((_, w) => scoreArc(base, w, arcFeatures(SCENARIOS.healthy, -3000 - i, w, 0)));
+    const arcs = JOB.welds.map((_, w) => scoreArc(base, w, arcFeatures(0, -3000 - i, w, 0, 0, false)));
     val.push(partScore(arcs));
   }
   const threshold = Math.round(quantile(val, DETECTOR.thresholdQuantile) * 1.1 * 100) / 100;
-  return { positions: base, threshold, version: 'RSB-417 · b3 · fitted on 0061–0100', valScores: val };
+  return { positions: base, threshold, version: 'RSB-417 · v3 · parts 0061–0100', valScores: val };
 }
 
 function scoreArc(base, w, x) {
@@ -196,27 +195,21 @@ function scoreArc(base, w, x) {
   return { score: Math.sqrt(s / x.length), z };
 }
 // Part score = median of its arc scores, so one noisy arc can't elevate a part.
-function partScore(arcs) {
-  return median(arcs.map((a) => a.score));
-}
+const partScore = (arcs) => median(arcs.map((a) => a.score));
 
 export const BASELINE = fitBaseline();
 
 // ---------------------------------------------------------------- clamp current
 // Synthetic current samples for one part cycle. Short-circuit transfer shows as
-// ripple; a worn tip makes the ripple irregular. Burnback produces a failed start
-// shorter than the minimum dwell.
-export function currentTrace(scn, p, severity, dropped, allowMissed = true) {
+// ripple; a worn tip makes the ripple irregular. A missed weld shows only failed
+// starts shorter than the minimum dwell.
+export function currentTrace(p, severity, missed) {
   const hz = DETECTOR.sampleHz;
   const n = Math.round(JOB.cycleSec * hz);
   const a = new Float32Array(n);
-  if (dropped) return null;
-  const missed = new Set(allowMissed ? scn.missedArcs.filter(([mp]) => mp === p).map(([, w]) => w) : []);
   JOB.welds.forEach((wd, w) => {
-    const startJ = 0.15 * gauss(SEED + 7, p, w, 0);
-    const t0 = wd.start + startJ;
-    if (missed.has(w)) {
-      // failed start: two short blips under the dwell time
+    const t0 = wd.start + 0.15 * gauss(SEED + 7, p, w, 0);
+    if (missed.includes(w)) {
       for (const [off, len] of [[0, 0.12], [0.5, 0.08]]) {
         const i0 = Math.round((t0 + off) * hz);
         for (let i = i0; i < i0 + Math.round(len * hz); i++) a[i] = 90 + 40 * u01(SEED + 9, p, w, i);
@@ -231,7 +224,6 @@ export function currentTrace(scn, p, severity, dropped, allowMissed = true) {
       a[i] = Math.max(0, ramp * wd.amps + ripple);
     }
   });
-  // idle noise floor
   for (let i = 0; i < n; i++) if (a[i] === 0) a[i] = Math.abs(1.5 * gauss(SEED + 17, p, 0, i));
   return a;
 }
@@ -255,44 +247,40 @@ export function segmentArcs(trace) {
   }
   return arcs;
 }
-
-// Match detected arcs to recipe slots by start time.
-function matchRecipe(arcs) {
-  return JOB.welds.map((wd) => arcs.find((a) => Math.abs(a.start - wd.start) < 2.5) || null);
-}
+const matchRecipe = (arcs) => JOB.welds.map((wd) => arcs.find((a) => Math.abs(a.start - wd.start) < 2.5) || null);
 
 // ---------------------------------------------------------------- run
-// decision: 'act' (operator does the setup check at the advisory) | 'ignore'
-export function runScenario(scenarioId, decision = 'act') {
-  const scn = SCENARIOS[scenarioId];
+// policy: 'act'    operator does the setup check at every advisory
+//         'ignore' operator keeps running (also: the physics of the no-Nabz baseline)
+export function runScenario(scn, policy = 'act') {
   const parts = [];
-  const elevated = [];       // rolling flags for parts with scores
-  let advisory = null;       // first advisory event
-  let intervention = null;   // part index after which the setup was fixed/checked
+  const elevated = [];
+  const advisories = [], interventions = [], events = [];
   let adviseOpen = false;
-  const events = [];
-  let resetAt = null;        // part after which drift is cleared (tip changed)
+  let wearStart = null, burnbackDone = false;
 
   for (let p = JOB.firstPart; p <= JOB.lastPart; p++) {
-    // truth for the baseline branch (no intervention)
-    const sevBase = scn.drift(p);
-    // truth for the Nabz branch: a tip change resets wear; a wire-lot "check" changes nothing
-    const fixed = resetAt !== null && p > resetAt && !scn.benign;
-    const severity = fixed ? 0 : sevBase;
+    const here = scn.faults.filter((f) => f.at === p);
+    if (here.some((f) => f.kind === 'wear') && wearStart === null) { wearStart = p; burnbackDone = false; }
+    const wearSev = wearStart === null ? 0 : wearRamp(p - wearStart);
+    const lotSev = scn.faults.some((f) => f.kind === 'lot' && f.at <= p) ? LOT_SHIFT_SIZE : 0;
+    const sev = wearSev + lotSev;
 
-    const dropped = scn.dropouts.includes(p);
-    // burnback only happens on the worn tip; after a tip change the weld strikes normally
-    const missedHere = !fixed && scn.missedArcs.some(([mp]) => mp === p);
-    const trace = currentTrace(scn, p, severity, dropped, !fixed);
+    const missed = here.filter((f) => f.kind === 'skip').map((f) => f.weld);
+    let burnback = false;
+    if (wearSev >= WEAR_BURNBACK && !burnbackDone) { burnback = true; burnbackDone = true; if (!missed.includes(2)) missed.push(2); }
+    const dropped = here.some((f) => f.kind === 'dropout');
+    const noisyWelds = here.filter((f) => f.kind === 'noise').map((f) => f.weld);
+
     let slots = null;
-    if (trace) slots = matchRecipe(segmentArcs(trace));
+    if (!dropped) slots = matchRecipe(segmentArcs(currentTrace(p, sev, missed)));
 
     // acoustic scores — only during detected arc windows (audio is gated by current)
     let arcScores = null, pScore = null;
     if (slots) {
       arcScores = slots.map((s, w) => {
         if (!s) return null;
-        const x = arcFeatures(scn, p, w, severity);
+        const x = arcFeatures(scn.seed, p, w, wearSev, lotSev, noisyWelds.includes(w));
         return { ...scoreArc(BASELINE.positions, w, x), x };
       });
       const valid = arcScores.filter(Boolean);
@@ -301,15 +289,11 @@ export function runScenario(scenarioId, decision = 'act') {
 
     // rule 1: count + duration at the part boundary
     let rule = 'ok', reason = '';
-    if (!slots) {
-      rule = 'unverified';
-      reason = 'Clamp signal lost — part not verified';
-    } else {
-      const missing = slots.map((s, w) => (s ? null : JOB.welds[w].id)).filter(Boolean);
-      const short = slots
-        .map((s, w) => (s && s.dur < JOB.welds[w].dur * (1 - JOB.durTolerance) ? JOB.welds[w].id : null))
-        .filter(Boolean);
-      if (missing.length) { rule = 'hold'; reason = `${4 - missing.length} of 4 welds · ${missing.join(', ')} missing`; }
+    if (!slots) { rule = 'unverified'; reason = 'Clamp signal lost, so the arcs could not be counted'; }
+    else {
+      const miss = slots.map((s, w) => (s ? null : JOB.welds[w].id)).filter(Boolean);
+      const short = slots.map((s, w) => (s && s.dur < JOB.welds[w].dur * (1 - JOB.durTolerance) ? JOB.welds[w].id : null)).filter(Boolean);
+      if (miss.length) { rule = 'hold'; reason = `${4 - miss.length} of 4 welds · ${miss.join(', ')} missing`; }
       else if (short.length) { rule = 'hold'; reason = `Short arc on ${short.join(', ')}`; }
     }
 
@@ -318,65 +302,40 @@ export function runScenario(scenarioId, decision = 'act') {
     if (pScore !== null) elevated.push(isElev);
     const win = elevated.slice(-DETECTOR.window);
     const k = win.filter(Boolean).length;
-    let drift = 'ok';
+    let drift = 'ok', checked = null;
     if (adviseOpen) drift = 'advise';
     else if (k >= DETECTOR.adviseK) {
       drift = 'advise';
       adviseOpen = true;
-      if (!advisory) {
-        advisory = { part: p, k, n: win.length, score: pScore };
-        events.push({ type: 'advisory', part: p });
-      } else {
-        events.push({ type: 'advisory-repeat', part: p });
-      }
-      if (decision === 'act' && resetAt === null) {
-        resetAt = p;
-        intervention = { part: p, minutes: DETECTOR.checkMinutes, label: scn.fixLabel || 'Check setup' };
-        events.push({ type: 'intervention', part: p });
+      advisories.push({ part: p, k, n: win.length, score: pScore });
+      events.push({ type: 'advisory', part: p });
+      if (policy === 'act') {
+        // the check happens at this part boundary; a worn tip is found and replaced
+        checked = { part: p, minutes: DETECTOR.checkMinutes, found: wearStart !== null ? 'wear' : null };
+        interventions.push(checked);
+        events.push({ type: 'check', part: p });
+        if (wearStart !== null) wearStart = null;
+        adviseOpen = false;
+        elevated.length = 0;
       }
     } else if (k >= DETECTOR.watchK) drift = 'watch';
-
-    // after the operator checks, the advisory is acknowledged and the window cleared
-    if (resetAt === p && decision === 'act') {
-      adviseOpen = false;
-      elevated.length = 0;
-    }
 
     if (rule === 'hold') events.push({ type: 'hold', part: p });
     if (rule === 'unverified') events.push({ type: 'unverified', part: p });
 
-    // ground truth (what a section would show)
-    const internalDefect = severity > scn.defectAt + 0.03 * gauss(SEED + 23, p, 0, 0);
+    const internalDefect = wearSev > WEAR_DEFECT + 0.03 * gauss(SEED + 23, p, 0, 0);
     parts.push({
-      part: p,
-      severity, severityBase: sevBase,
-      trace: trace ? true : false,
-      arcs: slots,
-      arcScores,
-      score: pScore,
-      elevated: isElev,
-      k, n: win.length,
-      rule, reason,
-      drift,
-      truth: missedHere ? 'missing' : internalDefect ? 'defect' : 'good',
+      part: p, wearSev, lotSev, severity: sev, missed, burnback, dropped,
+      arcs: slots, arcScores, score: pScore, elevated: isElev,
+      k, n: win.length, rule, reason, drift, checked,
+      truth: missed.length ? 'missing' : internalDefect ? 'defect' : 'good',
     });
   }
 
-  return { scenario: scn, decision, parts, advisory, intervention, events, baseline: BASELINE };
-}
-
-// Baseline workflow (no Nabz) for the same physical run: nothing is known
-// until the sampled cut-and-etch teardown at the end of the interval.
-export function baselineTruth(scenarioId) {
-  const scn = SCENARIOS[scenarioId];
-  const out = [];
-  for (let p = JOB.firstPart; p <= JOB.lastPart; p++) {
-    const severity = scn.drift(p);
-    const missed = scn.missedArcs.some(([mp]) => mp === p);
-    const defect = severity > scn.defectAt + 0.03 * gauss(SEED + 23, p, 0, 0);
-    out.push({ part: p, severity, truth: missed ? 'missing' : defect ? 'defect' : 'good' });
-  }
-  return out;
+  return {
+    scenario: scn, policy, parts, events, advisories, interventions,
+    advisory: advisories[0] || null, intervention: interventions[0] || null, baseline: BASELINE,
+  };
 }
 
 // ---------------------------------------------------------------- outcomes & cost
@@ -385,62 +344,70 @@ export const COST_DEFAULTS = {
   sortPerHeldPart: 25,      // ₹ handling + visual sort per quarantined part
   marginPerPart: 40,        // ₹ contribution lost per part not produced
   containmentMinutes: 30,   // station stop for containment + root cause after a failed teardown
+  escapePerPart: 5000,      // ₹ per defective part that reaches the customer (complaint, sort at customer)
 };
 
-export function outcomes(scenarioId, decision, cost = COST_DEFAULTS) {
-  const run = runScenario(scenarioId, decision);
-  const base = baselineTruth(scenarioId);
-  const perMin = (60 / JOB.cycleSec) * cost.marginPerPart;
-  const minuteOf = (p) => ((p - JOB.firstPart + 1) * JOB.cycleSec) / 60;
+const minuteOf = (p) => ((p - JOB.firstPart + 1) * JOB.cycleSec) / 60;
 
-  // --- baseline: sampled teardown on the last part of the interval
-  const sample = base[base.length - 1];
-  const bad = base.filter((b) => b.truth !== 'good');
+// What a workflow costs, given the physical truth of its parts and what was caught at the station.
+function settle(parts, cost, withNabz) {
+  const bad = parts.filter((p) => p.truth !== 'good');
+  const sampleBad = parts[parts.length - 1].truth !== 'good';
+  const heldAtStation = withNabz ? parts.filter((p) => p.rule === 'hold') : [];
+  const unverified = withNabz ? parts.filter((p) => p.rule === 'unverified').length : 0;
   const firstBad = bad.length ? bad[0].part : null;
-  const teardownFails = sample.truth !== 'good';
-  const B = {
-    surfaces: teardownFails ? JOB.lastPart : null,
-    surfacesMin: teardownFails ? minuteOf(JOB.lastPart) : null,
-    held: teardownFails ? JOB.lastPart - JOB.lastGoodCheck : 0,
-    // additional cut-and-etch samples bound the range; the bounded range is scrapped
-    scrapped: teardownFails ? JOB.lastPart - firstBad + 1 : 0,
-    stopMin: teardownFails ? cost.containmentMinutes : 0,
-    escaped: teardownFails ? 0 : bad.length,
-  };
-  // --- with Nabz (same physical run; branch diverges at the intervention)
-  const nb = run.parts.filter((p) => p.truth !== 'good');
-  const nFirstBad = nb.length ? nb[0].part : null;
-  const nSample = run.parts[run.parts.length - 1];
-  const nFails = nSample.truth !== 'good';
-  const heldAtStation = run.parts.filter((p) => p.rule === 'hold').length;
-  const unverified = run.parts.filter((p) => p.rule === 'unverified').length;
-  const N = {
-    surfaces: run.advisory ? run.advisory.part : run.events.find((e) => e.type === 'hold')?.part ?? null,
-    surfacesMin: null,
-    held: nFails ? JOB.lastPart - JOB.lastGoodCheck : 0,
-    heldAtStation,
-    unverified,
-    scrapped: nFails ? JOB.lastPart - nFirstBad + 1 : heldAtStation,
-    stopMin: (run.intervention ? run.intervention.minutes : 0) + (nFails ? cost.containmentMinutes : 0),
-    escaped: 0,
-  };
-  if (N.surfaces) N.surfacesMin = minuteOf(N.surfaces);
+  const o = { teardownFails: sampleBad, firstBad, heldAtStation: heldAtStation.length, unverified };
+  if (sampleBad) {
+    // cut-and-etch fails: quarantine everything since the last good check; extra sections
+    // bound the range and the bounded range is scrapped
+    o.held = JOB.lastPart - JOB.lastGoodCheck;
+    o.scrapped = JOB.lastPart - firstBad + 1;
+    o.escaped = 0;
+    o.containMin = cost.containmentMinutes;
+  } else {
+    o.held = 0;
+    o.scrapped = heldAtStation.length;
+    o.escaped = bad.filter((p) => !(withNabz && p.rule === 'hold')).length;
+    o.containMin = 0;
+  }
+  return o;
+}
 
-  const price = (o) => ({
-    hold: o.held * cost.sortPerHeldPart + (o.unverified || 0) * cost.sortPerHeldPart,
-    scrap: o.scrapped * cost.scrapPerPart,
-    stop: Math.round(o.stopMin * perMin),
-  });
+export function outcomes(scn, policy, cost = COST_DEFAULTS) {
+  const run = runScenario(scn, policy);
+  const base = runScenario(scn, 'ignore');   // same physics, nobody listening
+  const perMin = (60 / JOB.cycleSec) * cost.marginPerPart;
+
+  const B = settle(base.parts, cost, false);
+  B.surfaces = B.teardownFails ? JOB.lastPart : null;
+  B.checks = 0;
+  B.stopMin = B.containMin;
+
+  const N = settle(run.parts, cost, true);
+  N.checks = run.interventions.length;
+  N.stopMin = N.checks * DETECTOR.checkMinutes + N.containMin;
+  const firstSignal = run.events.find((e) => e.type === 'advisory' || e.type === 'hold');
+  N.surfaces = firstSignal ? firstSignal.part : null;
+  N.surfaceType = firstSignal ? firstSignal.type : null;
+
+  const price = (o) => {
+    const c = {
+      hold: (o.held + o.unverified) * cost.sortPerHeldPart,
+      scrap: o.scrapped * cost.scrapPerPart,
+      stop: Math.round(o.stopMin * perMin),
+      escape: o.escaped * cost.escapePerPart,
+    };
+    c.total = c.hold + c.scrap + c.stop + c.escape;
+    return c;
+  };
   const bc = price(B), nc = price(N);
-  bc.total = bc.hold + bc.scrap + bc.stop;
-  nc.total = nc.hold + nc.scrap + nc.stop;
-
+  const firstBad = B.firstBad;
   return {
-    run, base, B, N, bc, nc, perMin, firstBad, nFirstBad,
+    run, base, B, N, bc, nc, perMin, firstBad,
     avoided: bc.total - nc.total,
     warningParts: N.surfaces && B.surfaces ? B.surfaces - N.surfaces : null,
     warningMin: N.surfaces && B.surfaces ? minuteOf(B.surfaces) - minuteOf(N.surfaces) : null,
-    leadParts: run.advisory && firstBad ? firstBad - run.advisory.part : null,
+    leadParts: run.advisory && firstBad && firstBad > run.advisory.part ? firstBad - run.advisory.part : null,
     minuteOf,
   };
 }
@@ -452,3 +419,4 @@ export function clockAt(p, extraMin = 0) {
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
 }
 export const pid = (p) => String(p).padStart(4, '0');
+export { minuteOf };

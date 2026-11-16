@@ -20,6 +20,7 @@ Every decision for part *p* uses only parts ≤ *p*. `engine.test.mjs` checks th
 | --- | --- | --- |
 | **Healthy** (control) | No process change. A nearby grinder spikes one arc on 0127. The clamp drops out on 0196. | Stays green. Ignores the single loud arc. Marks 0196 unverified. Teardown passes. |
 | **Worn tip** (fault) | Contact-tip wear from 0136. Internal lack of fusion from 0175. Burnback stops W3 on 0184. | Advisory at **0163** (14:52:24), with count and durations still in recipe. If the operator acts: tip changed, 3 min stop, no defects, teardown passes. If the operator keeps running: **Hold 0184** (3 of 4 welds), and the batch still fails at the teardown. |
+| **Sandbox** | Whatever you inject. Each fault starts on the next part. A worn tip ramps up and burns back W3 once when wear is severe. A skipped weld and a clamp dropout affect one part. | Same rules. A skipped weld is held at the fixture. Without Nabz it ships unless the teardown sample is bad. |
 | **Wire lot** (borderline) | New wire lot at 0150 without a baseline refresh. A small spectral shift, with welds in spec. | Repeated Watching states, then one advisory at 0174. The check finds nothing, so it is a false alert that costs a 3-minute stop. |
 
 The lead times in these runs (e.g. 12 parts, about 9.6 min, before the first defective weld) come from how the scenario was built. They are **not** a measured lead time. `docs.md` lists lead time and false alerts as unmeasured pilot questions.
@@ -27,7 +28,7 @@ The lead times in these runs (e.g. 12 parts, about 9.6 min, before the first def
 ## Cost model (editable in the app under *Assumptions & sources*)
 
 ```
-cost  = held parts × sort cost + scrapped parts × scrap value + stop minutes × ₹/min
+cost  = held parts × sort cost + scrapped parts × scrap value + stop minutes × ₹/min + shipped bad parts × escape cost
 ₹/min = (60 s ÷ cycle s) × contribution margin per part
 ```
 
@@ -40,6 +41,7 @@ cost  = held parts × sort cost + scrapped parts × scrap value + stop minutes �
 | Contribution margin per part | ₹40, giving ₹50/min | Placeholder |
 | Containment stop after a failed teardown | 30 min | Placeholder |
 | Operator setup check | 3 min | Placeholder |
+| Bad part reaching the customer | ₹5,000 per part | Placeholder for complaint handling and sorting at the customer. Only applies when a teardown passes and a defective part ships (Sandbox). |
 | Quarantine range | Last good check (0100) → teardown (0220) | `docs.md`: hold parts made since the last good check |
 | Scrap range | First defective part → teardown | Assumes extra sections bound the range. Porosity and lack of fusion cannot be sorted visually. |
 
