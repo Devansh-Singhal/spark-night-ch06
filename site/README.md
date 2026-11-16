@@ -12,7 +12,7 @@ Open <http://127.0.0.1:4179>. Run `npm run build` to generate `site/dist/` for s
 
 ## Simulator handoff
 
-1. From the root of a separate checkout of the [simulator branch](https://github.com/Devansh-Singhal/spark-night-ch06/tree/claude/modest-thompson-xbc2zq), run `npm start`. The replay serves at <http://localhost:5173/> by default. If 5173 is in use, set `PORT=5180` before starting it. In PowerShell, use `$env:PORT = "5180"; npm start`.
+1. From the repository root, run `npm start` in a separate terminal. The replay serves at <http://localhost:5173/> by default. If 5173 is in use, set `PORT=5180` before starting it. In PowerShell, use `$env:PORT = "5180"; npm start`. The same command works from a separate checkout of the [simulator branch](https://github.com/Devansh-Singhal/spark-night-ch06/tree/claude/modest-thompson-xbc2zq).
 2. Create a file named `.env.local` inside `site/` with the simulator’s actual launch URL:
 
    ```dotenv
