@@ -67,6 +67,23 @@ npm test
 npm --prefix site test
 ```
 
+### Nabz React PWA (`app/`)
+
+The repository includes the complete installable React PWA in `app/`. It provides the operator work surface, workpiece traceability passport, triaged attention queue, WPS recipes catalog, shift reporting, and local IndexedDB persistence.
+
+```sh
+# Run the React PWA in development mode
+npm run app:dev
+
+# Build the production PWA bundle (TypeScript + Vite + Workbox Service Worker)
+npm run app:build
+
+# Run app unit tests (Vitest)
+npm run app:test
+```
+
+See [app_doc.md](app_doc.md) and [agents.md](agents.md) for full architecture and engineering specifications.
+
 ### Build the judge site
 
 From the repository root, run `npm --prefix site run build` to generate `site/dist/` for static hosting. To preview an existing build locally, run `npm --prefix site start` and open <http://127.0.0.1:4179/>. For a hosted replay, set `NABZ_SIMULATOR_URL` to the hosted URL before building. See the [judge site README](site/README.md) for more details.

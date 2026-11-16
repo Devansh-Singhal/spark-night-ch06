@@ -26,6 +26,10 @@ The site uses the **Worn tip** scenario and default cost inputs at simulator com
 
 ## Evidence and assumptions
 
+- `cases.html` is the separate real-world Cases page linked from both navbars and the home-page recall strip. It is copied and served by `build.mjs` alongside the home page; it needs no JavaScript.
+- Case research was checked on 16 November 2026 against primary sources linked beside each claim. San Bruno's US$220m+ is PG&E's estimated property damage reported by PHMSA; Pueblo's US$15.6m is accident damage in NTSB RIR-25-03. Neither is an estimate of savings Nabz could deliver.
+- Automotive figures are recall populations, not counts of confirmed defective, replaced or scrapped vehicles. Costs are marked undisclosed where the cited records do not state them. The Subaru case is the 2019 Legacy/Outback campaign 19V-493. The 2018 Ascent campaign 18V-508 was excluded: despite early replacement/scrappage headlines, Subaru's [17 August completion notice](https://static.nhtsa.gov/odi/rcl/2018/RCMN-18V508-8881.pdf) says all 293 recalled vehicles cleared inspection.
+- Nabz relevance notes are explicitly interpretive. Spot welding, pipeline seam integrity and thermite rail welding are not validated applications of the proposed repeat-part MIG monitor. Arc count alone cannot establish seam location or internal weld quality.
 - The 52-car SIAM figure is 14 Škoda plus 38 Volkswagen vehicles in the 28 October 2024 entries. The missed seam was suspected.
 - Intel’s figures are test ROC AUC rounded to two decimals. The paper uses robotic welding with dedicated audio and video equipment. The public Edge Impulse counts describe the published data split. Neither measures Nabz’s factory performance.
 - The Worn tip scenario stipulates a lead of 12 parts at 48 s per part = 9.6 min. It compares ₹25,200 for late discovery with ₹150 for the setup stop, a modeled difference of ₹25,050. Sorting covers handling labor for the held lot, and scrap covers the loss on the 46 scrapped parts. The figures describe one synthetic run.

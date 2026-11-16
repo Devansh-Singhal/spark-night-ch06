@@ -36,6 +36,7 @@ button { cursor: pointer; }
 nav { display: flex; flex-wrap: wrap; gap: clamp(.9rem, 2.65vw, 2.5rem); font-size: .92rem; font-weight: 620; }
 nav a, .footer a { text-decoration: none; }
 nav a:hover, .footer a:hover { text-decoration: underline; }
+nav a[aria-current="page"] { color: var(--action); text-decoration: underline; text-decoration-thickness: 2px; }
 .challenge { font: .74rem/1.4 var(--mono); white-space: nowrap; }
 .challenge span { color: var(--action); border: 1px solid var(--line); padding: .28rem .4rem; margin-left: .28rem; }
 
@@ -142,6 +143,31 @@ details p { margin-top: .45rem; max-width: 86ch; }
 .pilot .button:hover { background: #caf8f5; }
 .footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; padding-block: 1.5rem; color: var(--muted); font-size: .85rem; }
 
+.cases-intro { padding-block: clamp(3rem, 6vw, 5.5rem) 2rem; }
+.cases-intro h1 { font-size: clamp(3.5rem, 7.05vw, 7rem); }
+.cases-intro .lede { max-width: 58ch; }
+.loss-highlights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid var(--line); margin-top: 2.5rem; }
+.loss-highlights a { padding: 1.3rem 1rem 1.3rem 0; text-decoration: none; }
+.loss-highlights a:hover strong { text-decoration: underline; text-underline-offset: .12em; }
+.loss-highlights strong { display: block; color: var(--action); font: 690 clamp(2rem, 4vw, 3.8rem)/1.1 var(--display); letter-spacing: -.05em; }
+.loss-highlights span { display: block; margin-top: .4rem; color: var(--muted); font-size: .9rem; }
+.case-index { display: flex; flex-wrap: wrap; gap: .7rem 1.4rem; padding-top: 1.75rem; font: .8rem/1.5 var(--mono); color: var(--action); }
+.loss-case { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 1.5rem clamp(2rem, 6vw, 5rem); border-top: 1px solid var(--line); padding-block: clamp(2rem, 4vw, 3.25rem); scroll-margin-top: 1.5rem; }
+.loss-case:last-child { padding-bottom: 0; }
+.case-context h3 { margin-top: .6rem; font-size: clamp(1.6rem, 2.8vw, 2.4rem); }
+.case-metric { margin-top: 1.5rem; }
+.case-metric strong { display: block; font: 690 clamp(2.8rem, 4.5vw, 4.3rem)/1.05 var(--display); color: var(--action); letter-spacing: -.055em; }
+.case-metric span { display: block; margin-top: .3rem; font-size: .9rem; }
+.case-context .case-note { max-width: 36ch; }
+.case-findings h4 { margin: 1.25rem 0 .4rem; font-size: 1rem; }
+.case-findings h4:first-child { margin-top: 0; }
+.case-findings > p { color: var(--muted); }
+.case-findings .case-lesson { margin-top: 1.2rem; padding-left: 1rem; border-left: 3px solid #15848a; font-size: .94rem; }
+.case-lesson strong { color: var(--ink); }
+.case-sources { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-top: .65rem; }
+.case-reading > p { max-width: 78ch; color: var(--muted); }
+.case-reading .button { margin-top: 1.5rem; }
+
 @media (max-width: 950px) {
   .hero { gap: 1.5rem; }
   h1 { font-size: clamp(3.45rem, 7.5vw, 5rem); }
@@ -158,7 +184,11 @@ details p { margin-top: .45rem; max-width: 86ch; }
   .hero .lede { margin-bottom: 1.15rem; }
   .recall-inner { grid-template-columns: auto 1fr; }
   .recall-inner a { grid-column: 2; }
-  .mechanism, .case-compare, .run-value, .applications, .calculator, .evidence-layout { grid-template-columns: 1fr; }
+  .mechanism, .case-compare, .run-value, .applications, .calculator, .evidence-layout, .loss-case { grid-template-columns: 1fr; }
+  .loss-highlights { grid-template-columns: 1fr; }
+  .loss-highlights a { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: center; }
+  .loss-highlights a + a { border-top: 1px solid var(--line); }
+  .loss-highlights span { margin-top: 0; }
   .mechanism li + li { border-left: 0; border-top: 1px solid var(--line); }
 }
 @media (max-width: 350px) {

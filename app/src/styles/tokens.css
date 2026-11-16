@@ -1,0 +1,55 @@
+:root {
+  /* Core palette */
+  --paper: #F0F2F0;
+  --surface: #FFFFFF;
+  --ink: #19212C;
+  --muted: #485662;
+  --line: #BCC5C5;
+  --control-line: #667785;
+  --action: #114957;
+  --action-hover: #0c3540;
+  --action-soft: #DEECEC;
+
+  /* Instrument Trace Surface */
+  --trace-panel: #1D2734;
+  --signal: #9CE4E5;
+  --signal-dim: #447b85;
+  --trace-grid: #283648;
+  --trace-text: #8ea1b5;
+
+  /* Semantic status colors */
+  --ok-ink: #216149;
+  --ok-bg: #E9F3ED;
+  --ok-border: #9ecfb8;
+
+  --warn-ink: #805000;
+  --warn-bg: #FFF3D6;
+  --warn-border: #f0cb7d;
+
+  --hold-ink: #A12E2A;
+  --hold-bg: #FBEAE7;
+  --hold-border: #f2aba5;
+
+  --unknown-ink: #485662;
+  --unknown-bg: #E7EBED;
+  --unknown-border: #bcc5c5;
+
+  /* Typography */
+  --font-sans: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+
+  /* Radii & Shadows */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+
+  --shadow-sm: 0 1px 2px rgba(25, 33, 44, 0.05);
+  --shadow-md: 0 4px 12px rgba(25, 33, 44, 0.08);
+  --shadow-lg: 0 8px 24px rgba(25, 33, 44, 0.12);
+
+  /* Layout dimensions */
+  --nav-rail-width: 224px;
+  --bottom-nav-height: 60px;
+  --header-height: 56px;
+}
