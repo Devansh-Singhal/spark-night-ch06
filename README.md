@@ -12,19 +12,62 @@ Nabz is a proposed retrofit that uses a split-core current sensor and phone audi
 
 The hardware, early-warning lead time, and performance on manual welding are pilot questions. Routine teardown inspection remains part of the proposed workflow.
 
-## Simulation (phase 1 of the website)
+## Run locally
 
-An interactive, light-themed simulation of one fictional shift segment at Station 02. A 3D CAD model shows the station: a fixture, a four-weld bracket, a cobot torch, the Nabz current clamp on the welding cable and the phone running the Nabz app. A weld still looks normal, Nabz hears the arc change, and you decide what the operator does. The same run then compares the baseline workflow with the Nabz workflow, down to the rupee. A Sandbox tab lets you inject faults yourself: tip wear, a skipped weld, grinder noise, an unplugged clamp, a new wire lot.
+Use Git and Node.js 22 or later (with npm) to run both apps. The replay alone works on Node.js 18 or later. Neither app requires `npm install`.
 
-```bash
-npm start        # → http://localhost:5173
+```sh
+git clone https://github.com/Devansh-Singhal/spark-night-ch06.git
+cd spark-night-ch06
 ```
 
-```bash
-npm test         # determinism, causality, healthy run, figure arithmetic
+### Browser replay
+
+From the repository root, run:
+
+```sh
+npm start
 ```
 
-No install step is needed: Node 18+ and no dependencies. The app lives in `sim/`. `engine.js` is the pure, deterministic simulation and detector. `scene3d.js` is the three.js CAD scene. three.js r160 is vendored in `sim/vendor/` (MIT), so the page works offline. `app.js` renders every view from the engine state at the playhead. Scenarios, cost inputs and sources are in [`sim/ASSUMPTIONS.md`](sim/ASSUMPTIONS.md). All telemetry is synthetic and labelled *Simulated run* in the app.
+Open <http://localhost:5173/>. The replay follows a fictional shift at Station 02 and lets you compare what happens when the operator keeps running or stops to check the setup.
+
+- A 3D CAD view shows the station: the fixture, a four-weld bracket, a cobot torch, the Nabz current clamp on the welding cable, and the phone running the Nabz app. Drag to orbit.
+- **Next event** jumps to the next thing Nabz reports. Drag the charts to scrub back.
+- The **Sandbox** tab lets you inject faults: a worn tip, a skipped weld, grinder noise, an unplugged clamp, or a new wire lot.
+
+All telemetry is synthetic. three.js r160 is vendored in `sim/vendor/` (MIT), so the replay works offline. See the [simulation assumptions](sim/ASSUMPTIONS.md) for scenarios, costs, and sources.
+
+### Judge site
+
+From the repository root, run:
+
+```sh
+cd site
+npm run dev
+```
+
+Open <http://127.0.0.1:4179/>. By default, **Run the simulation** opens the judge site’s built-in trace walkthrough.
+
+To launch the full browser replay from the judge site, keep the replay running in a separate terminal and create `site/.env.local` with this line:
+
+```dotenv
+NABZ_SIMULATOR_URL=http://localhost:5173/
+```
+
+If you change the replay’s port using the `PORT` environment variable, use that port in the URL. Restart the judge site with `npm run dev` after changing the file so the build picks up the new URL.
+
+### Run tests
+
+From the repository root:
+
+```sh
+npm test
+npm --prefix site test
+```
+
+### Build the judge site
+
+From the repository root, run `npm --prefix site run build` to generate `site/dist/` for static hosting. To preview an existing build locally, run `npm --prefix site start` and open <http://127.0.0.1:4179/>. For a hosted replay, set `NABZ_SIMULATOR_URL` to the hosted URL before building. See the [judge site README](site/README.md) for more details.
 
 ## Sources
 

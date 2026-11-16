@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Nabz is a weld early-warning prototype for repeat MIG jobs. Inspect a missing-arc trace, run the replay, and estimate what earlier intervention could save.">
+  <meta name="theme-color" content="#f0f2f0">
+  <title>Nabz | Catch the missing weld</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='7' fill='%2319212c'/%3E%3Cpath d='M6 21h8l4-10 5 18 4-8h7' fill='none' stroke='%2395dfe5' stroke-width='2.5'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./main.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="shell masthead">
+    <a class="wordmark" href="#top" aria-label="Nabz home">
+      <svg viewBox="0 0 40 40" width="38" height="38" aria-hidden="true"><rect width="40" height="40" rx="7"/><path d="M6 21h8l4-10 5 18 4-8h7"/></svg>
+      nabz<span>.</span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#signal">Signal</a>
+      <a href="#case">Case</a>
+      <a href="#economics">Economics</a>
+      <a href="#evidence">Evidence</a>
+    </nav>
+    <span class="challenge">SPARK Night <span>CH-06</span></span>
+  </header>
+
+  <main id="main">
+    <section id="top" class="shell hero" aria-labelledby="headline">
+      <div class="hero-copy">
+        <p class="tag"><span class="status-dot"></span> Weld monitoring prototype</p>
+        <h1 id="headline">Catch the<br>missing weld.</h1>
+        <p class="lede">Four welds were expected. Only three arcs registered. Run the shift to see what an earlier warning lets the operator do.</p>
+        <a class="button" data-simulator href="#walkthrough"><span class="play" aria-hidden="true"></span> Run the simulation</a>
+        <p class="launch-note" data-launch-note hidden>Opens the on-site trace walkthrough. Standalone replay connection pending.</p>
+      </div>
+
+      <figure class="station" id="walkthrough" tabindex="-1" aria-labelledby="station-title">
+        <div class="station-heading">
+          <div><span class="station-meta">Station 02 / Part 0184</span><h2 id="station-title">One cycle on the fixture</h2></div>
+          <span class="station-stamp">Synthetic trace</span>
+        </div>
+        <div class="trace-controls" role="group" aria-label="Trace example">
+          <button type="button" data-trace="missing" aria-pressed="true">Missing arc</button>
+          <button type="button" data-trace="normal" aria-pressed="false">Normal cycle</button>
+          <button type="button" data-trace="short" aria-pressed="false">Short arc</button>
+        </div>
+        <div class="chart-label"><span>Arc state from current</span><span>Cycle progress</span></div>
+        <svg class="trace" viewBox="0 0 560 192" role="img" aria-labelledby="trace-title trace-description">
+          <title id="trace-title">Expected and observed arc events</title>
+          <desc id="trace-description">Four arc events expected, three observed. The third expected arc is absent in this teaching trace.</desc>
+          <path class="grid" d="M17 26H543M17 67H543M17 108H543M17 149H543M17 26V149M148 26V149M279 26V149M411 26V149M543 26V149"/>
+          <path class="recipe" d="M46 149V53H114V149 M172 149V53H240V149 M302 149V53H370V149 M426 149V53H494V149"/>
+          <rect class="trace-mark" id="trace-mark" x="295" y="29" width="82" height="124"/>
+          <path class="observed" id="observed-line" d="M17 149H46V53H114V149H172V53H240V149H426V53H494V149H543"/>
+          <text x="80" y="177">01</text><text x="206" y="177">02</text><text x="336" y="177">03</text><text x="460" y="177">04</text>
+        </svg>
+        <figcaption>
+          <div class="legend"><span><i></i> Observed arc</span><span><i></i> Expected window</span></div>
+          <div class="station-result" id="station-result" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <div><strong id="trace-result">Hold part 0184</strong><small id="trace-reason">3 of 4 arcs observed at cycle close</small></div>
+          </div>
+        </figcaption>
+      </figure>
+    </section>
+
+    <aside class="recall" aria-label="Industry context">
+      <div class="shell recall-inner">
+        <strong>52</strong>
+        <p>cars recalled in India in October 2024 over a suspected missed track control arm weld seam at a supplier.</p>
+        <a href="https://www.siam.in/siam-voluntary-recall" target="_blank" rel="noopener noreferrer">SIAM recall register ↗</a>
+      </div>
+    </aside>
+
+    <section class="shell section" id="signal" aria-labelledby="signal-heading">
+      <div class="section-heading">
+        <p class="tag">How it works</p>
+        <h2 id="signal-heading">The current counts.<br>The microphone listens.</h2>
+        <p>A MIG arc heats the joint as a wire feeds into it. On a repeat job, the fixture and the job recipe tell Nabz how many arcs to expect and how long each should last. <a class="source-link" href="https://www.millerwelds.com/en-US/resources/knowledge-hub/mig-welding/how-to/understanding-the-basics-of-mig-welding-for-mild-steel" target="_blank" rel="noopener noreferrer">Miller Electric ↗</a></p>
+      </div>
+      <ol class="mechanism">
+        <li><span class="step">01 / Sense</span><h3>Find each arc</h3><p>A proposed clamp on the welding cable measures current. On/off thresholds and a minimum dwell define the arc window. A confirmed fixture or operator event closes the part cycle.</p></li>
+        <li><span class="step">02 / Compare</span><h3>Check the job recipe</h3><p>Count arc windows and check their duration. Score phone audio inside those windows against inspected good welds from the same job. A change in wire, gas, or recipe calls for a new baseline.</p></li>
+        <li><span class="step">03 / Respond</span><h3>Tell the operator why</h3><p>A missing or short arc means hold the part for inspection. Sustained sound drift earns a setup check. If a sensor drops out or the cycle boundary is uncertain, show that status and use the inspection plan.</p></li>
+      </ol>
+      <p class="technical-note"><strong>What the signals establish.</strong> Current shows when an arc fired and for how long. A correct count can still occur at the wrong location, and a short arc only suggests a short weld. Sound drift is an advisory. Weld geometry, strength and acceptance still come from inspection.</p>
+    </section>
+
+    <section class="case-band" id="case" aria-labelledby="case-heading">
+      <div class="shell section">
+        <div class="section-heading">
+          <p class="tag">Illustrative shop-floor case</p>
+          <h2 id="case-heading">Part 0184 is one arc short.</h2>
+          <p>A fictional supplier near Kundli makes rear suspension brackets at Station 02. Each part takes 48 seconds and calls for four MIG arcs. Choose what the operator does when the sound starts to change.</p>
+        </div>
+        <div class="case-compare">
+          <article>
+            <h3>Check the setup at part 0163</h3>
+            <p>Four of the last six parts sound unusual while the arc count and durations still meet the recipe. In the replay, the advisory arrives 12 parts (9.6 min) before the first modeled defect. Acting on it costs a three-minute stop to change the tip.</p>
+          </article>
+          <article>
+            <h3>Keep running to teardown</h3>
+            <p>The current rule recommends holding 0184 after it logs three of four arcs. The baseline workflow discovers the internal defect at the scheduled teardown on 0220 and holds 120 parts for review.</p>
+          </article>
+        </div>
+        <div class="run-value">
+          <div><p class="tag">Worn tip replay / default inputs</p><strong>₹25,050</strong><span>modeled savings in one run</span></div>
+          <p>Baseline ₹25,200 = 120 sorts × ₹25 + 46 scraps × ₹450 + 30 stop minutes × ₹50. Acting on the warning costs ₹150 for 3 stop minutes. Open <strong>Assumptions &amp; sources</strong> in the replay to edit the costs.</p>
+        </div>
+        <p class="case-note">Visual checks can catch an accessible missing seam. The fictional teardown checks inside the weld. Radiography is another internal testing method when specified by the inspection plan. <a class="source-link" href="https://www.iso.org/standard/67259.html" target="_blank" rel="noopener noreferrer">ISO 17637 ↗</a> <a class="source-link" href="https://www.iso.org/standard/78319.html" target="_blank" rel="noopener noreferrer">ISO 17636-1 ↗</a></p>
+        <div class="applications">
+          <article><h3>Repeat fixture jobs</h3><p>Start with brackets and similar parts with a known arc count, repeatable cycle boundaries and an existing inspection plan.</p></article>
+          <article><h3>One job starts sounding different</h3><p>Contact-tip problems can disrupt the arc and wire feed. A sustained sound shift earns a setup check. A wire lot change can also shift the signal, so each advisory needs investigation. <a class="source-link" href="https://www.bernardtregaskiss.com/understanding-and-extending-contact-tip-life/" target="_blank" rel="noopener noreferrer">Bernard &amp; Tregaskiss ↗</a></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell section" id="economics" aria-labelledby="economics-heading">
+      <div class="section-heading">
+        <p class="tag">Editable station model</p>
+        <h2 id="economics-heading">What is an earlier hold worth?</h2>
+        <p>Estimate the downstream loss a timely alert and operator response could avoid on one fixture. These inputs describe an illustrative line.</p>
+      </div>
+      <div class="calculator">
+        <form id="calculator" autocomplete="off" aria-label="Annual savings assumptions">
+          <label for="volume">Parts per year<input id="volume" name="volume" type="number" inputmode="numeric" min="0" max="10000000" step="1" value="60000" required></label>
+          <label for="rate">Weld-related affected parts (%)<input id="rate" name="rate" type="number" inputmode="decimal" min="0" max="100" step="any" value="1" required></label>
+          <label for="cost">Avoidable cost per affected part (₹)<input id="cost" name="cost" type="number" inputmode="decimal" min="0" max="1000000" step="any" value="400" required></label>
+          <label for="share">Losses earlier action could avoid (%)<input id="share" name="share" type="number" inputmode="decimal" min="0" max="100" step="any" value="30" required></label>
+          <p class="input-message" id="input-message" hidden>Enter valid values. Rates must be 0–100%, volume must be a whole number up to 1 crore, and cost must be ₹0–₹10 lakh.</p>
+          <button type="reset" class="reset">Reset assumptions</button>
+        </form>
+        <div class="estimate" aria-labelledby="estimate-label">
+          <span class="tag">Modeled annual gross savings</span>
+          <h3 class="visually-hidden" id="estimate-label">Annual savings estimate</h3>
+          <div aria-live="polite" aria-atomic="true">
+            <output id="savings" for="volume rate cost share">₹72,000</output>
+            <p id="formula">60,000 × 1% × ₹400 × 30%</p>
+            <div class="range"><strong id="sensitivity">₹36,000–₹1,08,000</strong><span id="sensitivity-basis"> at 15%–45% avoided share</span></div>
+          </div>
+          <p class="estimate-note">Sensitivity varies the avoided share by ±15 percentage points, bounded to 0–100%. Gross savings exclude kit, install, subscription and false-alert costs.</p>
+        </div>
+      </div>
+      <details>
+        <summary>What belongs in cost per affected part?</summary>
+        <p>Use the incremental loss an earlier hold could avoid after paying for any in-fixture inspection or repair. Weight late rework and scrap by their respective shares of affected parts. Count each part once and exclude recall exposure and batch sorting from this estimate. The project’s hardware target is ₹10,000–₹15,000 per station, plus a ₹1,000 per month subscription hypothesis. Both need pilot quotes and buyer feedback.</p>
+      </details>
+    </section>
+
+    <section class="evidence-band" id="evidence" aria-labelledby="evidence-heading">
+      <div class="shell section">
+        <div class="section-heading">
+          <p class="tag">Evidence &amp; validation</p>
+          <h2 id="evidence-heading">What would convince us?</h2>
+        </div>
+        <div class="evidence-layout">
+          <div class="evidence-rows">
+            <article><span class="tag">Published research</span><h3>0.85 audio / 0.92 audio + video</h3><p>Rounded test ROC AUC from Intel’s robotic welding study across 11 defect categories. Dedicated microphones and a camera captured welds with intentionally induced defects. AUC measures ranking across thresholds. <a class="source-link" href="https://arxiv.org/html/2409.02290#S4" target="_blank" rel="noopener noreferrer">Stemmer et al., results ↗</a></p></article>
+            <article><span class="tag">Public dataset</span><h3>109 training / 21 test clips</h3><p>The public welding sound project lists 24 min 34 sec of data. Nabz proposes evaluating its phone-audio approach against a grouped split, with the held-out counts and false alerts reported. <a class="source-link" href="https://studio.edgeimpulse.com/public/47648/latest/acquisition/training" target="_blank" rel="noopener noreferrer">Edge Impulse data ↗</a></p></article>
+            <article><span class="tag">Industrial precedent</span><h3>Current and arc time are measurable signals</h3><p>Lincoln Electric’s Arc Tracker logs arc time, current and voltage on DC welding circuits. Nabz proposes a clamp and a phone for a narrower workflow on repeat parts. <a class="source-link" href="https://ch-delivery.lincolnelectric.com/api/public/content/d61951865a8441b09d671816f6f8b3ff?v=4feff1bb" target="_blank" rel="noopener noreferrer">Lincoln Electric specification ↗</a></p></article>
+          </div>
+          <aside class="pilot">
+            <h3>One fixture. Two weeks.</h3>
+            <dl>
+              <dt>Shown in replay</dt><dd>Arc count and duration rules, drift scoring and operator choices on synthetic data. The wire-lot case shows a false advisory.</dd>
+              <dt>Proposed</dt><dd>Live clamp and phone capture, a baseline fitted to inspected welds, and a part-level disposition log.</dd>
+              <dt>Needs a pilot</dt><dd>Live alert lead time, false alerts per shift, missed defects, sensor reliability and install cost.</dd>
+            </dl>
+            <p>We’re looking for one repeat-part MIG fixture in Rai or Kundli to run alongside the shop’s regular inspections.</p>
+            <a class="button" data-simulator href="#walkthrough"><span class="play" aria-hidden="true"></span> Run the simulation</a>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="shell footer">
+    <span><strong>Nabz</strong> / SPARK Night CH-06</span>
+    <a href="#top">Back to top ↑</a>
+  </footer>
+</body>
+</html>
