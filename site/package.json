@@ -1,0 +1,12 @@
+{
+  "name": "nabz-judge-site",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node --env-file-if-exists=.env.local build.mjs",
+    "dev": "npm run build && npm start",
+    "start": "node build.mjs --serve",
+    "test": "node --test"
+  }
+}
