@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nabz · Station 02 replay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="word">NABZ</span>
+    <span class="sep"></span>
+    <span class="job" id="jobLine">Station 02 · RSB-417 rear suspension bracket · 4 MIG welds / part</span>
+  </div>
+  <div class="bar-right">
+    <span class="sim-tag" title="Synthetic telemetry and fictional case details">Simulated run</span>
+    <div class="seg" role="radiogroup" aria-label="Scenario" id="scnSeg"></div>
+    <button class="ghost" id="assumpBtn" aria-expanded="false" aria-controls="drawer">Assumptions &amp; sources</button>
+  </div>
+</header>
+
+<main class="grid">
+  <!-- WELD STAGE ---------------------------------------------------------->
+  <section class="stage card" aria-label="Weld stage">
+    <div class="stage-head">
+      <div class="readout">
+        <span class="lbl">Part</span><span class="val mono" id="roPart">0101</span>
+        <span class="lbl">Clock</span><span class="val mono" id="roClock">14:02:00</span>
+        <span class="lbl">Arc</span><span class="val mono" id="roArc">—</span>
+        <span class="lbl">Current</span><span class="val mono" id="roAmps">0 A</span>
+      </div>
+      <div class="arc-count" id="arcCount" aria-label="Arcs this part"></div>
+    </div>
+    <div class="stage-body">
+      <svg id="bracket" viewBox="0 0 640 340" role="img" aria-label="Bracket top view with four weld seams"></svg>
+      <div class="macro" id="macro" hidden></div>
+    </div>
+    <div class="trace-wrap">
+      <div class="chart-title"><span>Clamp current · this part cycle</span><span class="units mono">arc on 40 A · off 20 A · dwell ≥ 0.3 s</span></div>
+      <canvas id="trace" height="120" aria-label="Clamp current trace for the current part"></canvas>
+    </div>
+  </section>
+
+  <!-- OPERATOR PANEL ------------------------------------------------------->
+  <section class="panel card" aria-label="Nabz station screen" aria-live="polite">
+    <div class="panel-top">
+      <div class="state" id="state" data-s="ok">
+        <span class="state-icon" id="stateIcon" aria-hidden="true"></span>
+        <div>
+          <div class="state-word" id="stateWord">Running</div>
+          <div class="state-sub" id="stateSub">Count and sound within baseline</div>
+        </div>
+      </div>
+      <dl class="kv">
+        <div><dt>Part</dt><dd class="mono" id="pPart">—</dd></div>
+        <div><dt>Reason</dt><dd id="pReason">—</dd></div>
+        <div><dt>Next action</dt><dd id="pAction">—</dd></div>
+      </dl>
+    </div>
+    <div class="evidence" id="evidence"></div>
+    <div class="decision" id="decision" hidden></div>
+  </section>
+
+  <!-- SCORE CHART ---------------------------------------------------------->
+  <section class="score card" aria-label="Arc sound score by part">
+    <div class="chart-title">
+      <span>Arc sound vs. job baseline <span class="muted">· distance from known-good welds, median of the part’s arcs</span></span>
+      <span class="units mono" id="thrLabel"></span>
+    </div>
+    <canvas id="scoreCv" height="190"></canvas>
+  </section>
+
+  <!-- TIMELINE ------------------------------------------------------------>
+  <section class="timeline card" aria-label="Run timeline and comparison">
+    <div class="controls">
+      <button class="play" id="playBtn" aria-label="Play">▶</button>
+      <button class="ghost" id="resetBtn" title="Reset (R)">Reset</button>
+      <div class="speed" role="radiogroup" aria-label="Replay speed" id="speedSeg"></div>
+      <span class="legend" id="tlLegend"><span>Inside the weld, revealed by the teardown:</span><span><i style="background:#3d5a3d"></i>sound</span><span><i style="background:#d03b3b"></i>defect</span></span>
+      <span class="hint muted">Drag the timeline to scrub · Space play/pause · ← → step a part</span>
+    </div>
+    <canvas id="tlCv" height="176" tabindex="0" aria-label="Timeline: drag to scrub"></canvas>
+    <div class="tip" id="tip" hidden></div>
+  </section>
+
+  <!-- OUTCOME -------------------------------------------------------------->
+  <section class="outcome card" aria-label="Outcome comparison" id="outcome"></section>
+</main>
+
+<!-- START BRIEF ------------------------------------------------------------>
+<div class="brief" id="brief">
+  <div class="brief-card">
+    <div class="brief-kicker mono">Kundli · Shift A · 14:02 · <span class="sim-tag inline">Simulated run</span></div>
+    <h1>Station 02 has 96 minutes until anyone looks inside a weld.</h1>
+    <p>The fixture welds <b>RSB-417 rear suspension brackets</b>: four MIG welds a part, one part every 48 s. The last cut-and-etch teardown passed on part <b class="mono">0100</b>. The next one is part <b class="mono">0220</b>.</p>
+    <p>Nabz is clamped on the welding cable and listening through a phone at the fixture. Watch the arc sound. Decide what the operator does when it speaks up.</p>
+    <div class="brief-actions">
+      <button class="primary" id="startBtn">▶&nbsp; Start the run</button>
+      <span class="muted" id="briefScn"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ASSUMPTIONS DRAWER ----------------------------------------------------->
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2>Assumptions &amp; sources</h2>
+    <button class="ghost" id="drawerClose" aria-label="Close">Close</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
