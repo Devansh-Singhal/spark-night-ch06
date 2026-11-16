@@ -5,6 +5,7 @@ import {
   runScenario, outcomes, currentTrace, segmentArcs, clockAt, pid, minuteOf,
 } from './engine.js';
 import { createStation } from './scene3d.js';
+import { bindFullscreen } from './fullscreen.js';
 
 const N = JOB.lastPart - JOB.firstPart + 1;
 const CYC = JOB.cycleSec;
@@ -808,6 +809,7 @@ function drawer(open) {
 
 function boot() {
   station = createStation($('vp'), $('vpOverlay'));
+  bindFullscreen($('simulation'), $('fullscreenBtn'), $('fullscreenStatus'));
   compute();
   renderTabs(); renderSandbox(); renderDrawer();
   $('introText').textContent = PRESETS[S.scn].intro;
@@ -824,7 +826,7 @@ function boot() {
   }));
   $('labelsBtn').onclick = () => { S.labels = !S.labels; station.setLabels(S.labels); $('labelsBtn').setAttribute('aria-pressed', String(S.labels)); };
   window.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') return;
+    if (e.target.tagName === 'INPUT' || (e.key === ' ' && e.target.closest('button'))) return;
     if (e.key === ' ') { e.preventDefault(); S.playing ? stop() : play(); }
     else if (e.key === 'ArrowRight') { stop(); setT(Math.floor(S.t + 1e-9) + 1); }
     else if (e.key === 'ArrowLeft') { stop(); setT(Math.ceil(S.t - 1e-9) - 1); }

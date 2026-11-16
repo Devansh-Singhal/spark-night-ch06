@@ -29,7 +29,7 @@
   </div>
 </header>
 
-<main class="page">
+<main class="page" id="simulation">
   <section class="intro">
     <div>
       <h1 id="introTitle">See a weld problem coming before it shows on the part.</h1>
@@ -60,6 +60,7 @@
             <button data-v="top" aria-pressed="false">Top</button>
           </div>
           <button class="seg-btn" id="labelsBtn" aria-pressed="true">Labels</button>
+          <button class="seg-btn" id="fullscreenBtn" aria-pressed="false" aria-controls="simulation">Full screen</button>
         </div>
         <div class="vp-hint">Drag to orbit · scroll to zoom</div>
         <div class="vp-mode" id="vpMode"></div>
@@ -107,6 +108,7 @@
       <button class="btn" id="resetBtn">Reset</button>
       <div class="seg" id="speedSeg" role="radiogroup" aria-label="Speed"></div>
       <div class="progress muted" id="progressTxt"></div>
+      <span class="muted small" id="fullscreenStatus" role="status" hidden></span>
     </div>
     <div class="chart">
       <div class="row-title"><b>Arc sound vs. this job's good welds</b><span>one dot per part · dashed line is the alert threshold</span></div>
