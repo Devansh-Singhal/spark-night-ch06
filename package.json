@@ -5,7 +5,7 @@
   "description": "Browser simulation of Nabz, a weld early-warning retrofit (SPARK Night CH-06)",
   "scripts": {
     "start": "node sim/serve.mjs",
-    "test": "node --test sim/engine.test.mjs"
+    "test": "node --test sim/*.test.mjs"
   },
   "engines": { "node": ">=18" }
 }

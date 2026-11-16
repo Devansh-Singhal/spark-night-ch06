@@ -2,6 +2,8 @@
 
 Everything in the replay is **simulated**. The telemetry is synthetic, and the supplier, job RSB-417 and part IDs are fictional. Part 0184 with three of four welds comes from the staged example in `docs.md`. The detector logic in `engine.js` is real code running on the synthetic data. It is not a measured Nabz result.
 
+The 3D welding animation is illustrative. Torch travel, sparks, smoke and the cooling trail follow the replay's arc timings; they do not predict weld physics or quality. Slow playback shows a 48-second part cycle in 24 seconds. Normal and Fast show finished parts. A missing arc leaves its seam unwelded. A lost clamp signal still shows the recipe's welding motion while Nabz marks the part unverified.
+
 ## What the detector does (engine.js)
 
 Following `docs.md`, technical approach steps 1–4:

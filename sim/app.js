@@ -21,12 +21,12 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 // ------------------------------------------------------------------ state
 const SPEEDS = [
-  { id: 'slow', label: 'Slow', pps: 0.3, title: 'Watch every weld' },
+  { id: 'slow', label: 'Slow', pps: 1 / 24, title: 'Watch every weld · 2× process speed' },
   { id: 'normal', label: 'Normal', pps: 1.2, title: 'About a part a second' },
   { id: 'fast', label: 'Fast', pps: 4, title: 'Four parts a second' },
 ];
 const S = {
-  scn: 'fault', t: START_T, playing: false, seeking: false, speed: SPEEDS[1],
+  scn: 'fault', t: START_T, playing: false, seeking: false, speed: SPEEDS[0],
   policy: {}, revealed: {}, pausedAt: new Set(), cost: { ...COST_DEFAULTS },
   hover: null, sandbox: [], labels: true,
 };
@@ -57,7 +57,7 @@ function frame(ts) {
   const dt = lastTs == null ? 0 : Math.min(0.06, (ts - lastTs) / 1000);
   lastTs = ts;
   if (S.playing) advance(dt * (S.seeking ? 10 : S.speed.pps));
-  draw(dt);
+  draw();
   requestAnimationFrame(frame);
 }
 function eventStops(r) {
@@ -166,23 +166,22 @@ let station = null;
 function stageState(v) {
   const p = v.part, sec = v.sSec;
   const tr = traceFor(v.r, v.sIdx);
-  const beads = [0, 0, 0, 0], heat = [0, 0, 0, 0], missed = [false, false, false, false];
-  let arc = null, next = null;
+  const beads = [0, 0, 0, 0], missed = [false, false, false, false];
+  const timings = JOB.welds.map((_, w) => weldTimes(p, w, tr));
+  let arc = null;
   JOB.welds.forEach((wd, w) => {
-    const tm = weldTimes(p, w, tr);
-    if (!tm) { if (sec > wd.start + wd.dur) missed[w] = true; else if (next == null && sec < wd.start + wd.dur) next = w; return; }
-    if (sec >= tm.end) { beads[w] = 1; heat[w] = v.live ? Math.exp(-(sec - tm.end) / 5) : 0; }
-    else if (sec >= tm.start) { beads[w] = (sec - tm.start) / tm.dur; heat[w] = 1; arc = { w, frac: beads[w] }; }
-    else if (next == null) next = w;
+    const tm = timings[w];
+    if (!tm) { if (sec > wd.start + wd.dur) missed[w] = true; return; }
+    if (sec >= tm.end) beads[w] = 1;
+    else if (sec >= tm.start) { beads[w] = (sec - tm.start) / tm.dur; arc = { w, frac: beads[w] }; }
   });
-  if (!v.live) { arc = null; next = null; }
-  if (sec >= CYC - 1e-6) next = null;
+  if (!v.live) arc = null;
   const ph = phoneModel(v);
-  return { beads, heat, missed, arc, next, dropped: !tr, phone: ph, phoneKey: JSON.stringify(ph), tr, sec };
+  return { beads, missed, arc, timings, live: v.live, dropped: !tr, phone: ph, phoneKey: JSON.stringify(ph), tr, sec };
 }
-function drawStage(v, dt) {
+function drawStage(v) {
   const st = stageState(v);
-  station.update(st, dt);
+  station.update(st);
   const amps = st.tr ? Math.round(st.tr[Math.min(st.tr.length - 1, Math.floor(st.sec * DETECTOR.sampleHz))]) : null;
   setText('hudPart', pid(v.part.part));
   setText('hudWeld', st.arc ? `${JOB.welds[st.arc.w].id} ${JOB.welds[st.arc.w].name}` : v.live ? (st.sec < 8 ? 'Loading part' : st.sec > 34 ? 'Unloading' : 'Moving') : 'Time-lapse');
@@ -686,11 +685,11 @@ function renderTip(clientX, cv) {
 }
 
 // ------------------------------------------------------------------ frame
-function draw(dt) {
+function draw() {
   NARROW = $('tlCv').clientWidth < 640;
   GUT = NARROW ? 54 : 120;
   const v = view();
-  const st = drawStage(v, dt);
+  const st = drawStage(v);
   drawTrace(v, st);
   drawScore(v);
   drawLanes(v);
