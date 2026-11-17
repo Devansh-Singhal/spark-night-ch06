@@ -254,7 +254,7 @@ canvas { display: block; width: 100%; }
   .main { grid-template-columns: 1fr; grid-template-rows: auto; grid-template-areas: "playback" "viewport" "side"; }
   .page:fullscreen .main { display: flex; flex-direction: column; }
   .page:fullscreen .main > * { flex: none; }
-  .page:fullscreen .vp { flex: none; min-height: 0; height: clamp(160px, calc(100dvh - 300px), 400px); }
+  .page:fullscreen .vp { flex: none; min-height: 0; height: clamp(160px, calc(100dvh - 400px), 400px); }
 }
 @media (max-width: 760px) {
   .top-in { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
