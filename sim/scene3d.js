@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { RoomEnvironment } from './vendor/RoomEnvironment.js';
+import { createWeldingEffects, positionTorch } from './welding.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const COL = {
@@ -23,7 +24,7 @@ class ArcCurve3 extends THREE.Curve {
 // A rippled weld bead along a curve; drawRange reveals it as the arc travels.
 function beadGeometry(curve, seg, radial, r) {
   const frames = curve.computeFrenetFrames(seg, false);
-  const pos = [], nor = [], idx = [];
+  const pos = [], nor = [], uv = [], idx = [];
   const n = new THREE.Vector3(), P = new THREE.Vector3();
   for (let i = 0; i <= seg; i++) {
     curve.getPointAt(i / seg, P);
@@ -35,6 +36,7 @@ function beadGeometry(curve, seg, radial, r) {
       n.set(0, 0, 0).addScaledVector(frames.normals[i], Math.cos(a)).addScaledVector(frames.binormals[i], Math.sin(a));
       pos.push(P.x + n.x * R, P.y + n.y * R * 0.8, P.z + n.z * R);
       nor.push(n.x, n.y, n.z);
+      uv.push(i / seg, j / radial);
     }
   }
   for (let i = 0; i < seg; i++) for (let j = 0; j < radial; j++) {
@@ -44,6 +46,7 @@ function beadGeometry(curve, seg, radial, r) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   g.userData = { seg, radial };
   return g;
@@ -86,7 +89,7 @@ export function createStation(host, overlay) {
 
   const VIEWS = {
     station: { pos: V(700, 500, 860), target: V(-30, 40, -40) },
-    welds: { pos: V(290, 250, 360), target: V(5, 20, -10) },
+    welds: { pos: V(250, 380, 430), target: V(0, 18, 0) },
     top: { pos: V(0, 1350, 120), target: V(0, 0, 0) },
   };
   camera.position.copy(VIEWS.station.pos);
@@ -204,13 +207,15 @@ export function createStation(host, overlay) {
     new ArcCurve3(V(118, 0, 10), 30.6, Math.PI * 1.22, Math.PI * 2.78, 10.6),
     new THREE.LineCurve3(V(-58, 10.6, 28.6), V(-2, 10.6, 28.6)),
   ];
-  const beadMats = [], beads = [], guides = [];
+  const beads = [], guides = [];
   const guideMat = new THREE.LineDashedMaterial({ color: 0x7d838c, dashSize: 4, gapSize: 4, transparent: true, opacity: 0.9 });
   const missMat = new THREE.LineDashedMaterial({ color: 0xd03b3b, dashSize: 5, gapSize: 3 });
   seamCurves.forEach((c) => {
-    const m = new THREE.MeshStandardMaterial({ color: COL.bead, metalness: 0.55, roughness: 0.45, emissive: 0xff6a1a, emissiveIntensity: 0 });
-    beadMats.push(m);
     const geo = beadGeometry(c, c instanceof ArcCurve3 ? 140 : 48, 14, 4.8);
+    const thermal = new THREE.DataTexture(new Uint8Array((geo.userData.seg + 1) * 4), geo.userData.seg + 1, 1);
+    thermal.magFilter = THREE.LinearFilter;
+    thermal.needsUpdate = true;
+    const m = new THREE.MeshStandardMaterial({ color: COL.bead, metalness: 0.55, roughness: 0.45, emissive: 0xffffff, emissiveMap: thermal, emissiveIntensity: 2.5 });
     const mesh = new THREE.Mesh(geo, m);
     mesh.castShadow = true;
     geo.setDrawRange(0, 0);
@@ -257,9 +262,11 @@ export function createStation(host, overlay) {
     g.fillStyle = r; g.fillRect(0, 0, 128, 128);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   })();
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, opacity: 0 }));
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, toneMapped: false, opacity: 0 }));
   glow.scale.set(70, 70, 1);
   scene.add(glow);
+  const welding = createWeldingEffects(scene, seamCurves, glowTex);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // ---------------- welding power source + cable + Nabz clamp
   const ps = new THREE.Group(); scene.add(ps);
@@ -296,10 +303,12 @@ export function createStation(host, overlay) {
 
   let dynCable = null;
   const updateCable = (pts) => {
+    if (dynCable && pts.every((p, i) => p.distanceToSquared(dynCable.userData.points[i]) < 0.01)) return;
     if (dynCable) { scene.remove(dynCable); dynCable.geometry.dispose(); }
     const curve = new THREE.CatmullRomCurve3(pts);
     dynCable = new THREE.Mesh(new THREE.TubeGeometry(curve, 50, 6, 10, false), cableMat);
     dynCable.castShadow = true;
+    dynCable.userData.points = pts;
     scene.add(dynCable);
   };
 
@@ -343,11 +352,10 @@ export function createStation(host, overlay) {
   let showLabels = true;
 
   // ---------------- state & animation
-  const tip = V(0, 160, 40), tipTarget = V(0, 160, 40);
-  const tdir = V(0.45, 0.85, 0.28).normalize(), tdirTarget = tdir.clone();
+  const tip = V(0, 160, 40);
+  const tdir = V(0.45, 0.85, 0.28).normalize();
   const PARK = V(10, 150, 60);
   let arcI = 0;
-  const heat = [0, 0, 0, 0];
   let size = { w: 1, h: 1 };
 
   function resize() {
@@ -382,30 +390,29 @@ export function createStation(host, overlay) {
     return { S, E, axis, yaw };
   }
 
-  // st: { beads:[0..1]x4, missed:[bool]x4, arc:{w,frac}|null, mode:'live'|'lapse', phone:{...} }
-  function update(st, dt) {
+  // st carries the same per-arc timings and playhead as the current trace.
+  function update(st) {
     // beads
     st.beads.forEach((f, i) => {
       const g = beads[i].geometry, { seg, radial } = g.userData;
       g.setDrawRange(0, Math.floor(Math.max(0, Math.min(1, f)) * seg) * radial * 6);
       guides[i].visible = f < 1 || st.missed[i];
       guides[i].material = st.missed[i] ? missMat : guideMat;
-      const target = st.heat ? st.heat[i] : 0;
-      heat[i] += (target - heat[i]) * (1 - Math.exp(-dt * 6));
-      beadMats[i].emissiveIntensity = heat[i] * 1.4;
+      const thermal = beads[i].material.emissiveMap, data = thermal.image.data;
+      const tm = st.timings[i];
+      for (let j = 0; j <= seg; j++) {
+        const age = tm ? st.sec - tm.start - (j / seg) * tm.dur : -1;
+        const heat = st.live && age >= 0 && j / seg <= f ? Math.exp(-age / 1.5) : 0;
+        data[j * 4] = 255 * heat;
+        data[j * 4 + 1] = 120 * heat ** 3;
+        data[j * 4 + 2] = 25 * heat ** 6;
+        data[j * 4 + 3] = 255;
+      }
+      thermal.needsUpdate = true;
     });
     // torch target
-    if (st.arc) {
-      tipTarget.copy(seamCurves[st.arc.w].getPointAt(Math.min(1, st.arc.frac))).add(V(0, 5, 0));
-    } else if (st.next != null) {
-      tipTarget.copy(seamCurves[st.next].getPointAt(0)).add(V(0, 40, 0));
-    } else tipTarget.copy(PARK);
-    const k = st.arc ? 22 : 5;
-    tip.lerp(tipTarget, 1 - Math.exp(-dt * k));
-    // lean the torch away from the wall it welds against
-    const leanFor = [V(0.55, 0.8, 0.25), V(0.55, 0.8, 0.25), V(0.2, 0.85, 0.48), V(0.1, 0.8, 0.6)];
-    tdirTarget.copy(st.arc ? leanFor[st.arc.w] : st.next != null ? leanFor[st.next] : V(0.3, 0.9, 0.3)).normalize();
-    tdir.lerp(tdirTarget, 1 - Math.exp(-dt * 4)).normalize();
+    if (st.live) positionTorch(seamCurves, st.timings, st.sec, PARK, tip, tdir);
+    else { tip.copy(PARK); tdir.set(0.3, 0.9, 0.3).normalize(); }
     const nozzleEnd = tip.clone().addScaledVector(tdir, 9);
     const nozzleTop = tip.clone().addScaledVector(tdir, 44);
     const wrist = tip.clone().addScaledVector(tdir, 130);
@@ -420,15 +427,15 @@ export function createStation(host, overlay) {
     placeJoint(jWrist, wrist, arm.axis);
     turret.rotation.y = arm.yaw;
     updateCable([robotBase.clone().add(V(-30, 80, -40)), arm.S.clone().add(V(-30, 50, -30)), arm.E.clone().add(V(0, 46, 0)), wrist.clone().add(V(0, 30, 0)), nozzleTop.clone().addScaledVector(tdir, 40)]);
-    // arc glow (smoothed so it never flickers)
-    const arcTarget = st.arc ? 1 : 0;
-    arcI += (arcTarget - arcI) * (1 - Math.exp(-dt * 14));
-    arcLight.position.copy(tip).add(V(0, 6, 0));
+    // The light stays at the metal, exactly where the bead is being laid.
+    arcI = st.arc ? 1 : 0;
+    if (st.arc) arcLight.position.copy(seamCurves[st.arc.w].getPointAt(st.arc.frac)).add(V(0, 8, 0));
     arcLight.intensity = arcI * 26000;
-    glow.position.copy(tip).add(V(0, 2, 0));
-    glow.material.opacity = arcI;
+    glow.position.copy(arcLight.position);
+    glow.material.opacity = arcI * 0.65;
     const sc = 46 + 10 * arcI;
     glow.scale.set(sc, sc, 1);
+    welding.update(st, tip, tdir, reducedMotion.matches);
     led.material.emissiveIntensity = 0.5 + arcI * 2.2;
     led.material.emissive.setHex(st.dropped ? 0x777777 : arcI > 0.2 ? 0x2a78d6 : 0x2fb52f);
     if (st.phoneKey !== update._pk) { update._pk = st.phoneKey; drawPhone(st.phone); screenTex.needsUpdate = true; }

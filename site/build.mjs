@@ -5,6 +5,7 @@ import { readSimulatorUrl } from "./model.js";
 const output = new URL("./dist/", import.meta.url);
 const assets = {
   "index.html": "text/html",
+  "cases.html": "text/html",
   "style.css": "text/css",
   "main.js": "text/javascript",
   "model.js": "text/javascript",

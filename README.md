@@ -32,6 +32,8 @@ npm start
 Open <http://localhost:5173/>. The replay follows a fictional shift at Station 02 and lets you compare what happens when the operator keeps running or stops to check the setup.
 
 - A 3D CAD view shows the station: the fixture, a four-weld bracket, a cobot torch, the Nabz current clamp on the welding cable, and the phone running the Nabz app. Drag to orbit.
+- Press **Play** to watch the four seams in **Slow**: the torch approaches each joint, lays a cooling bead under a blue arc, and throws sparks with a light smoke trail. **Welds** gives a close view. Pause freezes the effects; scrubbing reconstructs them. Reduced-motion preferences hide sparks and smoke. **Normal** and **Fast** show finished parts in time-lapse.
+- **Full screen** expands the simulation while keeping playback controls and operator decisions available. Use **Exit full screen** or **Esc** to return.
 - **Next event** jumps to the next thing Nabz reports. Drag the charts to scrub back.
 - The **Sandbox** tab lets you inject faults: a worn tip, a skipped weld, grinder noise, an unplugged clamp, or a new wire lot.
 
@@ -64,6 +66,23 @@ From the repository root:
 npm test
 npm --prefix site test
 ```
+
+### Nabz React PWA (`app/`)
+
+The repository includes the complete installable React PWA in `app/`. It provides the operator work surface, workpiece traceability passport, triaged attention queue, WPS recipes catalog, shift reporting, and local IndexedDB persistence.
+
+```sh
+# Run the React PWA in development mode
+npm run app:dev
+
+# Build the production PWA bundle (TypeScript + Vite + Workbox Service Worker)
+npm run app:build
+
+# Run app unit tests (Vitest)
+npm run app:test
+```
+
+See [app_doc.md](app_doc.md) and [agents.md](agents.md) for full architecture and engineering specifications.
 
 ### Build the judge site
 
