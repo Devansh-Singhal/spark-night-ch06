@@ -39,6 +39,10 @@ const run = () => RUNS[policy() || 'ignore'];
 const revealed = () => !!S.revealed[S.scn];
 const firstAdv = () => RUNS.act.advisory;
 const advIdx = () => (firstAdv() ? firstAdv().part - JOB.firstPart : null);
+function waitingForDecision() {
+  const a = advIdx();
+  return a != null && !policy() && S.t >= a + 1;
+}
 const extraMin = (r, p) => r.interventions.filter((c) => c.part < p).length * DETECTOR.checkMinutes;
 const startClock = (r, p) => clockAt(p, extraMin(r, p));
 const endClock = (r, p) => clockAt(p + 1, extraMin(r, p));
@@ -83,14 +87,12 @@ function advance(dp) {
 }
 function stop() { S.playing = false; S.seeking = false; }
 function play() {
-  const a = advIdx();
-  if (a != null && !policy() && S.t >= a + 1) return;
+  if (waitingForDecision()) return;
   if (S.t >= N) S.t = START_T;
   S.playing = true;
 }
 function seekNext() {
-  const a = advIdx();
-  if (a != null && !policy() && S.t >= a + 1) return;
+  if (waitingForDecision()) return;
   if (S.t >= N) S.t = START_T;
   S.playing = true; S.seeking = true;
 }
@@ -400,7 +402,7 @@ function appModel(v) {
   const s = last ? stateOf(last) : 'idle';
   const recentCheck = last && r.interventions.filter((c) => c.part < last.part).slice(-1)[0];
   const m = { state: s, icon: { ok: '✓', watch: '~', advise: '!', hold: '■', unverified: '?', idle: '▶' }[s] };
-  if (s === 'idle') Object.assign(m, { title: 'Ready', sub: 'Waiting for the first part', part: `${pid(v.part.part)} on the fixture`, reason: '—', action: 'Press play' });
+  if (s === 'idle') Object.assign(m, { title: v.t > START_T ? 'First part in progress' : 'Ready', sub: 'Waiting for the first weld count', part: `${pid(v.part.part)} on the fixture`, reason: '—', action: '—' });
   if (s === 'ok') Object.assign(m, { title: 'Running', sub: 'Welds and sound look normal', part: pid(last.part), reason: `4 of 4 welds, right length. Sound ${last.score.toFixed(2)}, under ${BASELINE.threshold.toFixed(2)}.`, action: 'Keep going' });
   if (s === 'ok' && recentCheck && last.part - recentCheck.part <= 8) m.reason = recentCheck.found ? `Tip replaced at ${pid(recentCheck.part)}. Sound back to normal.` : `Checked at ${pid(recentCheck.part)}, no cause found.`;
   if (s === 'watch') Object.assign(m, { title: 'Watching', sub: 'A few parts sound different', part: pid(last.part), reason: `${last.k} of the last ${last.n} parts above the threshold.`, action: 'Keep going. One-off sounds do not stop the line.' });
@@ -429,35 +431,74 @@ function renderApp(v) {
 
 function narrate(v) {
   const { r, last } = v;
-  const sc = scenario();
   const s = last ? stateOf(last) : 'idle';
   const recentCheck = last && r.interventions.filter((c) => c.part < last.part).slice(-1)[0];
   if (v.done >= N) {
     const B = OUT.B, Nn = OUT.N;
-    let body;
-    if (B.teardownFails && !Nn.teardownFails) body = `Without Nabz, the teardown on part ${pid(JOB.lastPart)} finds bad welds and ${B.held} parts go into quarantine. With the setup check at part ${pid(r.intervention.part)}, the same teardown passes. The comparison is below.`;
-    else if (B.teardownFails) body = `The operator kept running, so both workflows end with the same failed teardown and the same quarantine. Nabz did catch part ${pid(r.events.find((e) => e.type === 'hold')?.part ?? 0)} at the fixture. Switch the decision to compare.`;
-    else if (B.escaped) body = `The teardown sample passed, so without Nabz ${plural(B.escaped, 'bad part')} would have shipped. Nabz held ${plural(Nn.heldAtStation, 'part')} at the fixture.`;
-    else if (r.advisories.length) body = 'Nothing was wrong with the welds. Nabz raised one advisory and the check found nothing, so this is what a false alert costs.';
-    else body = 'Nothing was wrong and Nabz stayed quiet. The one loud arc and the dropped clamp signal did not trigger anything.';
-    return { title: `Teardown on part ${pid(JOB.lastPart)}`, body, steps: [4] };
+    let points;
+    if (B.teardownFails && !Nn.teardownFails) points = [
+      `Without Nabz, the teardown finds bad welds and ${B.held} parts go into quarantine.`,
+      `With the setup check at part ${pid(r.intervention.part)}, the teardown passes.`,
+    ];
+    else if (B.teardownFails) points = [
+      'The operator kept running. Both workflows end in a failed teardown and quarantine.',
+      `Nabz still held ${plural(Nn.heldAtStation, 'part')} at the fixture.`,
+    ];
+    else if (B.escaped) points = [
+      `The teardown sample passed. Without Nabz, ${plural(B.escaped, 'bad part')} would have shipped.`,
+      `Nabz held ${plural(Nn.heldAtStation, 'part')} at the fixture.`,
+    ];
+    else if (r.advisories.length) points = ['The welds were sound.', 'The setup check found no fault. This was a false alert.'];
+    else points = ['The welds were sound.', 'Nabz finished the run without a setup advisory.'];
+    return { title: `Teardown on part ${pid(JOB.lastPart)}`, points, steps: [4] };
   }
-  if (s === 'idle') return { title: 'What you are looking at', body: `${sc.intro} Station 02 welds one bracket every 48 seconds, four welds each. Nabz has two inputs: a clamp on the welding cable and a phone listening at the fixture. Press Play, or Next event to jump straight to the first thing Nabz reports.`, steps: [] };
-  if (s === 'hold') return { title: `Why part ${pid(last.part)} is held`, body: `The clamp saw only ${last.arcs.filter(Boolean).length} of the 4 welds. ${last.reason.split('·')[1]?.trim() || ''}: the current shows only failed starts shorter than 0.3 s. Counting arcs is a fixed rule, not a model guess, so Nabz holds this one part before it leaves the fixture.`, steps: [1, 4], evidence: 'hold' };
-  if (s === 'unverified') return { title: 'No signal, no guess', body: `The clamp signal dropped for part ${pid(last.part)}, so Nabz cannot count its welds. It does not guess: the part goes to normal inspection and the line keeps running.`, steps: [1] };
+  if (s === 'idle') return { title: 'What you are looking at', points: [
+    'Station 02 makes one bracket with four welds every 48 seconds.',
+    'A clamp on the welding cable lets Nabz count welds and time each one.',
+    'A phone listens during each weld. Nabz compares the sound with known-good welds from this job.',
+  ], steps: [] };
+  if (s === 'hold') return { title: `Why part ${pid(last.part)} is held`, points: [
+    last.reason,
+    'The welds missed the recipe requirements. Nabz asks the operator to hold this bracket at the fixture.',
+  ], steps: [1, 4], evidence: 'hold' };
+  if (s === 'unverified') return { title: 'Clamp signal lost', points: [
+    `Nabz cannot count the welds on part ${pid(last.part)}.`,
+    'The bracket goes to normal inspection. The line keeps running.',
+  ], steps: [1] };
   if (s === 'advise') {
-    if (policy() === 'ignore' && last.part > r.advisory.part) return { title: 'Advisory still open', body: 'The operator kept running. Nabz keeps the advisory up and still counts every weld. The arc sound keeps moving away from the baseline.', steps: [4], evidence: 'advise' };
-    return { title: 'Something is changing', body: `${r.advisory.k} of the last ${r.advisory.n} parts sound different from this job's good welds. Every weld is still there, the right length, and looks normal. This is the early warning: the process is drifting before anything visible goes wrong.`, steps: [3, 4], evidence: 'advise' };
+    if (policy() === 'ignore' && last.part > r.advisory.part) return { title: 'Advisory still open', points: [
+      'The operator kept running. Nabz continues to count each weld.',
+      'The weld sound is still different from the known-good welds.',
+    ], steps: [4], evidence: 'advise' };
+    return { title: 'Nabz recommends a setup check', points: [
+      `${r.advisory.k} of the last ${r.advisory.n} parts sound different from known-good welds.`,
+      'All four welds are present, the right length, and still look normal.',
+    ], steps: [3, 4], evidence: 'advise' };
   }
   if (recentCheck && last.part - recentCheck.part <= 10) {
     return recentCheck.found
-      ? { title: 'Fixed early', body: `At the check the operator found the contact-tip bore worn oval and replaced it, a ${recentCheck.minutes}-minute stop. The sound dropped straight back under the threshold, and the following parts are sound.`, steps: [4] }
-      : { title: 'Checked, nothing found', body: 'Tip, nozzle, gas and wire feed were all fine. A new wire spool went on at part 0150. It is within spec but sounds slightly different, and the baseline was never refreshed. This alert cost a 3-minute stop. The fix is to re-baseline after a wire change.', steps: [4] };
+      ? { title: 'Fixed early', points: [
+        `The operator replaced the worn contact tip during a ${recentCheck.minutes}-minute stop.`,
+        'The weld sound returned to its usual range.',
+      ], steps: [4] }
+      : { title: 'Setup check found no fault', points: [
+        'The new wire spool is within spec and sounds different from the original spool.',
+        `The alert cost a ${recentCheck.minutes}-minute stop. Refreshing the sound baseline after a wire change can help.`,
+      ], steps: [4] };
   }
-  if (s === 'watch') return { title: 'Watching, not stopping', body: `${last.k} of the last ${last.n} parts sound a bit different. That can be shop noise, so Nabz waits for ${DETECTOR.adviseK} of ${DETECTOR.window} before it asks anyone to act.`, steps: [3], evidence: 'window' };
+  if (s === 'watch') return { title: 'Nabz is watching the sound', points: [
+    `${last.k} of the last ${last.n} parts sound different from the known-good welds.`,
+    `Nabz asks for a setup check when ${DETECTOR.adviseK} of the last ${DETECTOR.window} parts sound different.`,
+  ], steps: [3], evidence: 'window' };
   const loudArc = last.arcScores && last.arcScores.some((a) => a && a.score > BASELINE.threshold * 2.5) && !last.elevated;
-  if (loudArc) return { title: 'One loud arc, ignored', body: `One arc on part ${pid(last.part)} was very loud, probably a grinder nearby. Nabz scores each part by the middle of its four arcs, so a single loud arc does not raise the part.`, steps: [3], evidence: 'window' };
-  return { title: 'Running normally', body: `Every part has 4 of 4 welds of the right length, and sounds like the good welds this job was trained on. The dots below sit under the dashed line. ${S.scn === 'fault' ? 'Keep an eye on them.' : ''}`, steps: v.live ? [1, 2] : [3], evidence: 'window' };
+  if (loudArc) return { title: 'One loud weld', points: [
+    `One weld on part ${pid(last.part)} was unusually loud, as can happen when a grinder runs nearby.`,
+    'Nabz uses the middle of the four weld scores, so the part stayed below the alert threshold.',
+  ], steps: [3], evidence: 'window' };
+  return { title: 'Running normally', points: [
+    'The last bracket has four welds of the right length.',
+    'Its sound is within the usual range for this job.',
+  ], steps: v.live ? [1, 2] : [3], evidence: 'window' };
 }
 
 function windowFlags(r, part) {
@@ -472,13 +513,17 @@ function renderExplain(v) {
   const n = narrate(v);
   const r = v.r;
   const evPart = n.evidence === 'advise' ? r.parts[r.advisory.part - JOB.firstPart] : v.last;
-  const k = [n.title, n.body, n.evidence, evPart && evPart.part, policy(), revealed()].join('|');
+  const k = [n.title, ...n.points, n.evidence, evPart && evPart.part, policy(), revealed()].join('|');
   document.querySelectorAll('#how li').forEach((li) => li.classList.toggle('on', n.steps.includes(+li.dataset.step)));
   station.setHighlight(n.steps.includes(1) && n.evidence === 'hold' ? 'clamp' : n.steps.includes(3) || n.evidence === 'advise' ? 'phone' : null);
   if (keys.ex === k) return;
   keys.ex = k;
   setText('exTitle', n.title);
-  setText('exBody', n.body);
+  $('exBody').replaceChildren(...n.points.map((point) => {
+    const li = document.createElement('li');
+    li.textContent = point;
+    return li;
+  }));
   const ev = $('evidence');
   if (n.evidence === 'window' && evPart) {
     const f = windowFlags(r, evPart.part);
@@ -536,7 +581,7 @@ function renderDecision(v) {
     <div class="opts">
       <button class="rec" data-d="act" aria-pressed="${d === 'act'}"><span class="t">Stop and check</span><span class="d">About 3 minutes</span></button>
       <button data-d="ignore" aria-pressed="${d === 'ignore'}"><span class="t">Keep running</span><span class="d">Wait for the teardown at ${pid(JOB.lastPart)}</span></button>
-    </div>${res ? `<div class="res">${res} ${revealed() ? '' : 'Press Play to continue.'}</div>` : ''}`;
+    </div>${res ? `<div class="res">${res} ${revealed() ? '' : 'Select Resume or Next event to continue.'}</div>` : ''}`;
   box.querySelectorAll('button').forEach((b) => (b.onclick = () => choose(b.dataset.d)));
 }
 function choose(d) {
@@ -697,12 +742,13 @@ function draw() {
   renderApp(v);
   renderExplain(v);
   renderOutcome(v);
-  const waiting = advIdx() != null && !policy() && S.t >= advIdx() + 1;
-  const pb = $('playBtn');
-  pb.classList.toggle('wait', waiting);
+  const waiting = waitingForDecision();
+  $('playBtn').classList.toggle('wait', waiting);
+  $('nextBtn').disabled = waiting;
   $('playIcon').setAttribute('d', S.playing ? 'M5 4h3.5v12H5zM11.5 4H15v12h-3.5z' : 'M6 4l10 6-10 6z');
-  setText('playLabel', waiting ? 'Choose an action' : S.playing ? 'Pause' : S.t >= N ? 'Replay' : S.t > START_T ? 'Resume' : 'Play');
-  setText('progressTxt', `${v.done} of ${N} parts welded · ${v.done ? endClock(v.r, JOB.firstPart + v.done - 1).slice(0, 5) : JOB.shiftStart.slice(0, 5)}`);
+  $('playIcon').parentElement.toggleAttribute('hidden', waiting);
+  setText('playLabel', waiting ? 'Choose an action' : S.playing ? 'Pause' : S.t >= N ? 'Replay' : S.t > START_T ? 'Resume' : 'Start simulation');
+  setText('progressTxt', `${v.done} of ${N} parts`);
 }
 
 // ------------------------------------------------------------------ controls
@@ -814,7 +860,11 @@ function boot() {
   renderTabs(); renderSandbox(); renderDrawer();
   $('introText').textContent = PRESETS[S.scn].intro;
   bindScrub($('scoreCv')); bindScrub($('tlCv'));
-  $('playBtn').onclick = () => (S.playing ? stop() : play());
+  $('playBtn').onclick = () => {
+    if (waitingForDecision()) $('decision').querySelector('button')?.focus();
+    else if (S.playing) stop();
+    else play();
+  };
   $('nextBtn').onclick = seekNext;
   $('resetBtn').onclick = reset;
   $('methodBtn').onclick = () => drawer(true);
